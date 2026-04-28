@@ -65,6 +65,10 @@ class GameState(
         tableCards.clear()
         tableCards.addAll(newTableCards)
 
+        // Убрать видимые карты из knownOpponentCards (если мы их видим — они не у противника)
+        knownOpponentCards.removeAll(newMyCards)
+        knownOpponentCards.removeAll(newTableCards)
+
         // Козырь
         if (detectedTrump != null) {
             trumpSuit = detectedTrump

@@ -61,6 +61,7 @@ class OverlayService : Service() {
     private var autoScanEnabled = false
     private var autoScanRunnable: Runnable? = null
     private var hasApiKey = false
+    private var isOverlayActive = false
 
     private lateinit var tvStatus: TextView
     private lateinit var tvMyCards: TextView
@@ -124,8 +125,11 @@ class OverlayService : Service() {
 
         startForeground(NOTIFICATION_ID, notification)
 
-        setupMediaProjection()
-        createOverlay()
+        if (!isOverlayActive) {
+            setupMediaProjection()
+            createOverlay()
+            isOverlayActive = true
+        }
 
         return START_NOT_STICKY
     }
@@ -136,14 +140,16 @@ class OverlayService : Service() {
         val data = resultData ?: return
         mediaProjection = projectionManager.getMediaProjection(resultCode, data)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            mediaProjection?.registerCallback(object : MediaProjection.Callback() {
-                override fun onStop() {
-                    virtualDisplay?.release()
-                    imageReader?.close()
-                }
-            }, handler)
-        }
+        mediaProjection?.registerCallback(object : MediaProjection.Callback() {
+            override fun onStop() {
+                stopAutoScan()
+                virtualDisplay?.release()
+                virtualDisplay = null
+                imageReader?.close()
+                imageReader = null
+                mediaProjection = null
+            }
+        }, handler)
 
         imageReader = ImageReader.newInstance(
             screenWidth, screenHeight, PixelFormat.RGBA_8888, 2
@@ -289,25 +295,31 @@ class OverlayService : Service() {
             if (bitmap != null) {
                 recognizer.recognizeCards(bitmap) { result ->
                     handler.post {
-                        gameState.updateFromScan(
-                            result.myCards,
-                            result.tableCards,
-                            result.trumpSuit,
-                            result.deckCount
-                        )
+                        if (result.isBusy) {
+                            tvStatus.text = "Ожидание предыдущего скана..."
+                        } else if (result.isError) {
+                            tvStatus.text = result.rawResponse
+                        } else {
+                            gameState.updateFromScan(
+                                result.myCards,
+                                result.tableCards,
+                                result.trumpSuit,
+                                result.deckCount
+                            )
 
-                        val statusParts = mutableListOf<String>()
-                        statusParts.add("Мои: ${result.myCards.size}")
-                        statusParts.add("Стол: ${result.tableCards.size}")
-                        if (result.trumpSuit != null) {
-                            statusParts.add("Козырь: ${result.trumpSuit.symbol}")
-                        }
-                        if (result.deckCount != null) {
-                            statusParts.add("Колода: ${result.deckCount}")
-                        }
+                            val statusParts = mutableListOf<String>()
+                            statusParts.add("Мои: ${result.myCards.size}")
+                            statusParts.add("Стол: ${result.tableCards.size}")
+                            if (result.trumpSuit != null) {
+                                statusParts.add("Козырь: ${result.trumpSuit.symbol}")
+                            }
+                            if (result.deckCount != null) {
+                                statusParts.add("Колода: ${result.deckCount}")
+                            }
 
-                        tvStatus.text = statusParts.joinToString(" | ")
-                        updateOverlayUI()
+                            tvStatus.text = statusParts.joinToString(" | ")
+                            updateOverlayUI()
+                        }
                     }
                     bitmap.recycle()
                 }
@@ -401,8 +413,12 @@ class OverlayService : Service() {
         stopAutoScan()
         cardRecognizer?.close()
         virtualDisplay?.release()
+        virtualDisplay = null
         mediaProjection?.stop()
+        mediaProjection = null
         imageReader?.close()
+        imageReader = null
+        isOverlayActive = false
         try {
             windowManager.removeView(overlayView)
         } catch (_: Exception) {}

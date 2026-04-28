@@ -67,13 +67,18 @@ class CardRecognizer(
         val tableCards: Set<Card>,
         val trumpSuit: Suit?,
         val deckCount: Int?,
-        val rawResponse: String
+        val rawResponse: String,
+        val isBusy: Boolean = false,
+        val isError: Boolean = false
     )
 
     /** Распознать карты на скриншоте через AI Vision. */
     fun recognizeCards(bitmap: Bitmap, callback: (RecognitionResult) -> Unit) {
         if (isProcessing) {
-            callback(RecognitionResult(emptySet(), emptySet(), null, null, "Идёт обработка..."))
+            callback(RecognitionResult(
+                emptySet(), emptySet(), null, null,
+                "Идёт обработка...", isBusy = true
+            ))
             return
         }
 
@@ -89,7 +94,7 @@ class CardRecognizer(
                 Log.e(TAG, "Ошибка распознавания", e)
                 callback(RecognitionResult(
                     emptySet(), emptySet(), null, null,
-                    "Ошибка: ${e.message}"
+                    "Ошибка: ${e.message}", isError = true
                 ))
             } finally {
                 isProcessing = false
