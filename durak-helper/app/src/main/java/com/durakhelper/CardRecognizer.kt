@@ -33,14 +33,6 @@ class CardRecognizer {
         "Т" to Rank.ACE, "T" to Rank.ACE, "A" to Rank.ACE
     )
 
-    /** Маппинг символов мастей. */
-    private val suitSymbolMap = mapOf(
-        "\u2660" to Suit.SPADES,   // ♠
-        "\u2663" to Suit.CLUBS,    // ♣
-        "\u2665" to Suit.HEARTS,   // ♥
-        "\u2666" to Suit.DIAMONDS  // ♦
-    )
-
     /**
      * Результат распознавания экрана.
      */

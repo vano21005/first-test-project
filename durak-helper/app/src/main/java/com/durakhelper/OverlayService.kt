@@ -115,6 +115,16 @@ class OverlayService : Service() {
         val data = resultData ?: return
         mediaProjection = projectionManager.getMediaProjection(resultCode, data)
 
+        // API 34+ требует регистрации callback перед createVirtualDisplay
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            mediaProjection?.registerCallback(object : MediaProjection.Callback() {
+                override fun onStop() {
+                    virtualDisplay?.release()
+                    imageReader?.close()
+                }
+            }, handler)
+        }
+
         imageReader = ImageReader.newInstance(
             screenWidth, screenHeight, PixelFormat.RGBA_8888, 2
         )
@@ -285,15 +295,16 @@ class OverlayService : Service() {
             val rowStride = planes[0].rowStride
             val rowPadding = rowStride - pixelStride * screenWidth
 
-            val bitmap = Bitmap.createBitmap(
+            val tempBitmap = Bitmap.createBitmap(
                 screenWidth + rowPadding / pixelStride,
                 screenHeight,
                 Bitmap.Config.ARGB_8888
             )
-            bitmap.copyPixelsFromBuffer(buffer)
+            tempBitmap.copyPixelsFromBuffer(buffer)
 
-            // Обрезать до реального размера экрана
-            return Bitmap.createBitmap(bitmap, 0, 0, screenWidth, screenHeight)
+            val croppedBitmap = Bitmap.createBitmap(tempBitmap, 0, 0, screenWidth, screenHeight)
+            tempBitmap.recycle()
+            return croppedBitmap
         } finally {
             image.close()
         }
