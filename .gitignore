@@ -18,3 +18,17 @@ build/
 .vscode/
 *.swp
 *.swo
+
+# Android
+*.apk
+*.aab
+*.dex
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+local.properties
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
