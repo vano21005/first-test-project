@@ -3,17 +3,14 @@ package com.durakhelper
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.GridLayout
-import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+
 
 /**
  * Игровой экран: ввод карт, отслеживание, подсказки.
@@ -187,10 +184,12 @@ class GameActivity : AppCompatActivity() {
                 card in gameState.myCards -> {
                     btn.setBackgroundColor(Color.parseColor("#4CAF50")) // зелёный
                     btn.setTextColor(Color.WHITE)
+                    btn.alpha = 1f
                 }
                 card in gameState.tableCards -> {
                     btn.setBackgroundColor(Color.parseColor("#FF9800")) // оранжевый
                     btn.setTextColor(Color.WHITE)
+                    btn.alpha = 1f
                 }
                 card in gameState.discardedCards -> {
                     btn.setBackgroundColor(Color.parseColor("#9E9E9E")) // серый

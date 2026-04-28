@@ -16,12 +16,15 @@ class GameState(
     /** Сброшенные карты (бито). */
     val discardedCards = mutableSetOf<Card>()
 
+    /** Карты, которые забрал противник (видимые, но не в сбросе). */
+    private val knownOpponentCards = mutableSetOf<Card>()
+
     /** Все 36 карт в колоде. */
     private val fullDeck = Card.fullDeck().toSet()
 
-    /** Карты, которые ещё не были видны (не у меня, не на столе, не в сбросе). */
+    /** Карты, которые ещё не были видны (не у меня, не на столе, не в сбросе, не у противника). */
     val unknownCards: Set<Card>
-        get() = fullDeck - myCards - tableCards - discardedCards
+        get() = fullDeck - myCards - tableCards - discardedCards - knownOpponentCards
 
     /** Количество карт, оставшихся в колоде (приблизительно). */
     val remainingInDeck: Int
@@ -35,6 +38,7 @@ class GameState(
         myCards.add(card)
         tableCards.remove(card)
         discardedCards.remove(card)
+        knownOpponentCards.remove(card)
     }
 
     /** Убрать карту из руки. */
@@ -46,6 +50,8 @@ class GameState(
     fun addTableCard(card: Card) {
         tableCards.add(card)
         myCards.remove(card)
+        discardedCards.remove(card)
+        knownOpponentCards.remove(card)
     }
 
     /** Отбой — все карты со стола уходят в сброс. */
@@ -56,6 +62,7 @@ class GameState(
 
     /** Забрать карты со стола (противник забирает). */
     fun takeTableCards() {
+        knownOpponentCards.addAll(tableCards)
         tableCards.clear()
     }
 
@@ -64,6 +71,7 @@ class GameState(
         myCards.clear()
         tableCards.clear()
         discardedCards.clear()
+        knownOpponentCards.clear()
     }
 
     // ---------- Подсказки ----------
