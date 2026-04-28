@@ -1,94 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="32dp"
     android:background="#1B5E20">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textColor="#FFFFFF"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="4dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Оверлей поверх игры"
-        android:textColor="#C8E6C9"
-        android:textSize="14sp"
-        android:layout_marginBottom="32dp" />
-
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Количество игроков:"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:layout_marginBottom="8dp" />
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="32dp">
 
-    <Spinner
-        android:id="@+id/spinnerPlayers"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:background="#FFFFFF"
-        android:layout_marginBottom="24dp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textColor="#FFFFFF"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Козырная масть:"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:layout_marginBottom="8dp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AI Vision — распознавание карт"
+            android:textColor="#C8E6C9"
+            android:textSize="14sp"
+            android:layout_marginBottom="24dp" />
 
-    <Spinner
-        android:id="@+id/spinnerTrump"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:background="#FFFFFF"
-        android:layout_marginBottom="32dp" />
+        <!-- Статус API -->
+        <TextView
+            android:id="@+id/tvApiStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="API не настроен"
+            android:textColor="#FF5722"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:background="#33000000"
+            android:padding="8dp"
+            android:layout_marginBottom="16dp" />
 
-    <Button
-        android:id="@+id/btnStartGame"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:text="Запустить помощник"
-        android:textSize="18sp"
-        android:backgroundTint="#4CAF50"
-        android:textColor="#FFFFFF"
-        android:layout_marginBottom="12dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Количество игроков:"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
 
-    <TextView
-        android:id="@+id/tvOverlayStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Нажмите кнопку для запуска оверлея"
-        android:textColor="#FFD54F"
-        android:textSize="14sp"
-        android:gravity="center"
-        android:layout_marginBottom="24dp" />
+        <Spinner
+            android:id="@+id/spinnerPlayers"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="#FFFFFF"
+            android:layout_marginBottom="24dp" />
 
-    <Button
-        android:id="@+id/btnSettings"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:text="Настройки AI"
-        android:textSize="14sp"
-        android:backgroundTint="#2E7D32"
-        android:textColor="#C8E6C9" />
+        <Button
+            android:id="@+id/btnStartGame"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="Запустить помощник"
+            android:textSize="18sp"
+            android:backgroundTint="#4CAF50"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="12dp" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Как работает:\n1. Выберите козырь и игроков\n2. Нажмите «Запустить помощник»\n3. Разрешите показ поверх и захват экрана\n4. Откройте игру «Дурак»\n5. Нажимайте ♠ для сканирования"
-        android:textColor="#A5D6A7"
-        android:textSize="12sp"
-        android:layout_marginTop="24dp" />
+        <TextView
+            android:id="@+id/tvOverlayStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Нажмите кнопку для запуска"
+            android:textColor="#FFD54F"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
 
-</LinearLayout>
+        <Button
+            android:id="@+id/btnSettings"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Настройки AI"
+            android:textSize="14sp"
+            android:backgroundTint="#2E7D32"
+            android:textColor="#C8E6C9"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Как работает:\n1. Настройте API-ключ (GigaChat или OpenAI)\n2. Выберите число игроков\n3. Нажмите «Запустить помощник»\n4. Разрешите показ поверх и захват экрана\n5. Откройте игру «Дурак онлайн»\n6. Нажмите ♠ → Скан (или Авто)\n\nAI Vision определит:\n• Ваши карты\n• Карты на столе\n• Козырную масть\n• Количество карт в колоде"
+            android:textColor="#A5D6A7"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
+</ScrollView>

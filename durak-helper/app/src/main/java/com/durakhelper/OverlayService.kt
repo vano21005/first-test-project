@@ -30,7 +30,7 @@ import androidx.core.app.NotificationCompat
 
 /**
  * Оверлей-сервис: плавающее окно поверх игры.
- * Захватывает экран, распознаёт карты, показывает подсказки.
+ * Захватывает экран, отправляет в AI Vision, показывает подсказки.
  */
 class OverlayService : Service() {
 
@@ -44,12 +44,13 @@ class OverlayService : Service() {
         var trumpSuit: Suit = Suit.SPADES
 
         private const val VIRTUAL_DISPLAY_NAME = "DurakCapture"
+        private const val AUTO_SCAN_INTERVAL = 5000L
     }
 
     private lateinit var windowManager: WindowManager
     private lateinit var overlayView: View
     private lateinit var gameState: GameState
-    private lateinit var cardRecognizer: CardRecognizer
+    private var cardRecognizer: CardRecognizer? = null
 
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
@@ -59,10 +60,12 @@ class OverlayService : Service() {
     private var isExpanded = false
     private var autoScanEnabled = false
     private var autoScanRunnable: Runnable? = null
+    private var hasApiKey = false
 
     private lateinit var tvStatus: TextView
     private lateinit var tvMyCards: TextView
     private lateinit var tvTableCards: TextView
+    private lateinit var tvTrump: TextView
     private lateinit var tvStats: TextView
     private lateinit var tvAdvice: TextView
     private lateinit var btnScan: Button
@@ -83,7 +86,6 @@ class OverlayService : Service() {
         createNotificationChannel()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         gameState = GameState(playerCount, trumpSuit)
-        cardRecognizer = CardRecognizer()
 
         val metrics = DisplayMetrics()
         @Suppress("DEPRECATION")
@@ -91,12 +93,31 @@ class OverlayService : Service() {
         screenWidth = metrics.widthPixels
         screenHeight = metrics.heightPixels
         screenDensity = metrics.densityDpi
+
+        initCardRecognizer()
+    }
+
+    /** Загрузить API-ключ и создать CardRecognizer. */
+    private fun initCardRecognizer() {
+        val prefs = getSharedPreferences("durak_settings", Context.MODE_PRIVATE)
+        val apiKey = prefs.getString("api_key", "") ?: ""
+        val apiTypeStr = prefs.getString("api_type", "GIGACHAT") ?: "GIGACHAT"
+
+        hasApiKey = apiKey.isNotEmpty()
+        if (hasApiKey) {
+            val apiType = if (apiTypeStr == "OPENAI") {
+                AiHelper.ApiType.OPENAI
+            } else {
+                AiHelper.ApiType.GIGACHAT
+            }
+            cardRecognizer = CardRecognizer(apiType, apiKey)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Дурак Помощник")
-            .setContentText("Оверлей активен — считаю карты")
+            .setContentText("Оверлей активен — AI Vision")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
@@ -115,7 +136,6 @@ class OverlayService : Service() {
         val data = resultData ?: return
         mediaProjection = projectionManager.getMediaProjection(resultCode, data)
 
-        // API 34+ требует регистрации callback перед createVirtualDisplay
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             mediaProjection?.registerCallback(object : MediaProjection.Callback() {
                 override fun onStop() {
@@ -155,12 +175,12 @@ class OverlayService : Service() {
             y = 100
         }
 
-        // Привязка элементов
         btnToggle = overlayView.findViewById(R.id.btnToggle)
         panelExpanded = overlayView.findViewById(R.id.panelExpanded)
         tvStatus = overlayView.findViewById(R.id.tvOverlayStatus)
         tvMyCards = overlayView.findViewById(R.id.tvOverlayMyCards)
         tvTableCards = overlayView.findViewById(R.id.tvOverlayTableCards)
+        tvTrump = overlayView.findViewById(R.id.tvOverlayTrump)
         tvStats = overlayView.findViewById(R.id.tvOverlayStats)
         tvAdvice = overlayView.findViewById(R.id.tvOverlayAdvice)
         btnScan = overlayView.findViewById(R.id.btnOverlayScan)
@@ -170,17 +190,23 @@ class OverlayService : Service() {
         val btnClose = overlayView.findViewById<Button>(R.id.btnOverlayClose)
         val btnReset = overlayView.findViewById<Button>(R.id.btnOverlayReset)
 
-        // Свернуть/развернуть
+        // Показать статус API
+        if (!hasApiKey) {
+            tvStatus.text = "API не настроен! Откройте Настройки AI"
+            btnScan.isEnabled = false
+            btnAutoScan.isEnabled = false
+        } else {
+            tvStatus.text = "Готов к сканированию (AI Vision)"
+        }
+
         btnToggle.setOnClickListener {
             isExpanded = !isExpanded
             panelExpanded.visibility = if (isExpanded) View.VISIBLE else View.GONE
             btnToggle.text = if (isExpanded) "▼" else "♠"
         }
 
-        // Сканировать экран
         btnScan.setOnClickListener { captureAndAnalyze() }
 
-        // Авто-сканирование
         btnAutoScan.setOnClickListener {
             autoScanEnabled = !autoScanEnabled
             btnAutoScan.text = if (autoScanEnabled) "Авто: ВКЛ" else "Авто: ВЫКЛ"
@@ -191,36 +217,30 @@ class OverlayService : Service() {
             }
         }
 
-        // Бито
         btnDiscard.setOnClickListener {
             gameState.discardTable()
             updateOverlayUI()
+            tvStatus.text = "Бито — карты ушли в сброс"
         }
 
-        // Забрали
         btnTake.setOnClickListener {
             gameState.takeTableCards()
             updateOverlayUI()
+            tvStatus.text = "Забрали — карты у противника"
         }
 
-        // Сброс
         btnReset.setOnClickListener {
             gameState.reset()
             updateOverlayUI()
-            tvStatus.text = "Сброс выполнен"
+            tvStatus.text = "Сброс — новая игра"
         }
 
-        // Закрыть
         btnClose.setOnClickListener {
             stopSelf()
         }
 
-        // Перетаскивание окна
         setupDrag(overlayView, params)
-
         windowManager.addView(overlayView, params)
-
-        // Начальное состояние — свёрнуто
         panelExpanded.visibility = View.GONE
     }
 
@@ -251,28 +271,42 @@ class OverlayService : Service() {
         }
     }
 
-    /** Захватить скриншот и проанализировать. */
+    /** Захватить скриншот и проанализировать через AI Vision. */
     private fun captureAndAnalyze() {
+        val recognizer = cardRecognizer
+        if (recognizer == null) {
+            tvStatus.text = "API не настроен! Откройте Настройки AI"
+            return
+        }
+
         tvStatus.text = "Сканирование..."
 
-        // Скрыть оверлей на время скриншота
         overlayView.visibility = View.INVISIBLE
         handler.postDelayed({
             val bitmap = captureScreen()
             overlayView.visibility = View.VISIBLE
 
             if (bitmap != null) {
-                cardRecognizer.recognizeCards(bitmap) { result ->
+                recognizer.recognizeCards(bitmap) { result ->
                     handler.post {
-                        // Обновить состояние игры
-                        for (card in result.myCards) {
-                            gameState.addMyCard(card)
+                        gameState.updateFromScan(
+                            result.myCards,
+                            result.tableCards,
+                            result.trumpSuit,
+                            result.deckCount
+                        )
+
+                        val statusParts = mutableListOf<String>()
+                        statusParts.add("Мои: ${result.myCards.size}")
+                        statusParts.add("Стол: ${result.tableCards.size}")
+                        if (result.trumpSuit != null) {
+                            statusParts.add("Козырь: ${result.trumpSuit.symbol}")
                         }
-                        for (card in result.tableCards) {
-                            gameState.addTableCard(card)
+                        if (result.deckCount != null) {
+                            statusParts.add("Колода: ${result.deckCount}")
                         }
 
-                        tvStatus.text = "Найдено: ${result.myCards.size} моих, ${result.tableCards.size} на столе"
+                        tvStatus.text = statusParts.joinToString(" | ")
                         updateOverlayUI()
                     }
                     bitmap.recycle()
@@ -280,7 +314,7 @@ class OverlayService : Service() {
             } else {
                 tvStatus.text = "Ошибка захвата экрана"
             }
-        }, 200)
+        }, 300)
     }
 
     /** Получить скриншот через MediaProjection. */
@@ -316,11 +350,11 @@ class OverlayService : Service() {
             override fun run() {
                 if (autoScanEnabled) {
                     captureAndAnalyze()
-                    handler.postDelayed(this, 5000) // каждые 5 секунд
+                    handler.postDelayed(this, AUTO_SCAN_INTERVAL)
                 }
             }
         }
-        handler.postDelayed(autoScanRunnable!!, 2000)
+        handler.postDelayed(autoScanRunnable!!, 1000)
     }
 
     private fun stopAutoScan() {
@@ -342,11 +376,13 @@ class OverlayService : Service() {
 
         tvMyCards.text = "Мои: $myCardsStr"
         tvTableCards.text = "Стол: $tableStr"
-        tvStats.text = "Бито: ${stats.discardedCount} | Неизв: ${stats.remainingUnknown} | Козыри: ${stats.myTrumps}/${stats.unknownTrumps}"
+        tvTrump.text = "Козырь: ${gameState.trumpSuit.symbol} ${gameState.trumpSuit.displayName}"
+        tvStats.text = "Бито: ${stats.discardedCount} | " +
+                "Колода: ${stats.remainingInDeck} | " +
+                "Козыри: ${stats.myTrumps}м/${stats.unknownTrumps}н"
         tvAdvice.text = gameState.getAdvice()
     }
 
-    /** Создать канал уведомлений. */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -363,7 +399,7 @@ class OverlayService : Service() {
 
     override fun onDestroy() {
         stopAutoScan()
-        cardRecognizer.close()
+        cardRecognizer?.close()
         virtualDisplay?.release()
         mediaProjection?.stop()
         imageReader?.close()

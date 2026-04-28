@@ -2,10 +2,11 @@ package com.durakhelper
 
 /**
  * Состояние игры: отслеживание карт и подсказки.
+ * Поддерживает автоматическое обновление из AI Vision и ручное управление.
  */
 class GameState(
     val playerCount: Int,
-    val trumpSuit: Suit
+    var trumpSuit: Suit
 ) {
     /** Карты игрока (мои). */
     val myCards = mutableSetOf<Card>()
@@ -16,24 +17,66 @@ class GameState(
     /** Сброшенные карты (бито). */
     val discardedCards = mutableSetOf<Card>()
 
-    /** Карты, которые забрал противник (видимые, но не в сбросе). */
+    /** Карты, которые забрал противник. */
     private val knownOpponentCards = mutableSetOf<Card>()
 
     /** Все 36 карт в колоде. */
     private val fullDeck = Card.fullDeck().toSet()
 
-    /** Карты, которые ещё не были видны (не у меня, не на столе, не в сбросе, не у противника). */
+    /** Карты в колоде (определяется AI или вычисляется). */
+    var deckCount: Int? = null
+
+    /** Карты, которые ещё не были видны. */
     val unknownCards: Set<Card>
         get() = fullDeck - myCards - tableCards - discardedCards - knownOpponentCards
 
-    /** Количество карт, оставшихся в колоде (приблизительно). */
+    /** Количество карт в колоде. */
     val remainingInDeck: Int
         get() {
-            val knownCards = myCards.size + tableCards.size + discardedCards.size
+            if (deckCount != null) return deckCount!!
+            val knownCards = myCards.size + tableCards.size +
+                    discardedCards.size + knownOpponentCards.size
             return (36 - knownCards).coerceAtLeast(0)
         }
 
-    /** Добавить карту в мою руку. */
+    /**
+     * Обновить состояние из результата AI Vision сканирования.
+     * Автоматически определяет бито (стол очистился).
+     */
+    fun updateFromScan(
+        newMyCards: Set<Card>,
+        newTableCards: Set<Card>,
+        detectedTrump: Suit?,
+        detectedDeckCount: Int?
+    ) {
+        // Авто-бито: если стол был не пуст, а теперь пуст
+        if (tableCards.isNotEmpty() && newTableCards.isEmpty()) {
+            val cardsLeftTable = tableCards.toSet()
+            val cardsAddedToHand = newMyCards - myCards
+            val discarded = cardsLeftTable - cardsAddedToHand
+            if (discarded.isNotEmpty()) {
+                discardedCards.addAll(discarded)
+            }
+        }
+
+        // Обновить видимое состояние
+        myCards.clear()
+        myCards.addAll(newMyCards)
+        tableCards.clear()
+        tableCards.addAll(newTableCards)
+
+        // Козырь
+        if (detectedTrump != null) {
+            trumpSuit = detectedTrump
+        }
+
+        // Колода
+        if (detectedDeckCount != null) {
+            deckCount = detectedDeckCount
+        }
+    }
+
+    /** Добавить карту в мою руку (ручной режим). */
     fun addMyCard(card: Card) {
         myCards.add(card)
         tableCards.remove(card)
@@ -46,7 +89,7 @@ class GameState(
         myCards.remove(card)
     }
 
-    /** Положить карту на стол. */
+    /** Положить карту на стол (ручной режим). */
     fun addTableCard(card: Card) {
         tableCards.add(card)
         myCards.remove(card)
@@ -72,14 +115,11 @@ class GameState(
         tableCards.clear()
         discardedCards.clear()
         knownOpponentCards.clear()
+        deckCount = null
     }
 
     // ---------- Подсказки ----------
 
-    /**
-     * Подсказка для атаки: какими картами лучше атаковать.
-     * Сортировка: сначала некозырные, по возрастанию номинала.
-     */
     fun suggestAttack(): List<Card> {
         return myCards.sortedWith(
             compareBy<Card> { if (it.suit == trumpSuit) 1 else 0 }
@@ -87,10 +127,6 @@ class GameState(
         )
     }
 
-    /**
-     * Подсказка для защиты: какой картой лучше побить [attackCard].
-     * Возвращает список подходящих карт, отсортированный по «экономности».
-     */
     fun suggestDefense(attackCard: Card): List<Card> {
         return myCards
             .filter { it.canBeat(attackCard, trumpSuit) }
@@ -100,10 +136,6 @@ class GameState(
             )
     }
 
-    /**
-     * Подсказка для подкидывания: карты с совпадающими номиналами
-     * к уже лежащим на столе.
-     */
     fun suggestThrowIn(): List<Card> {
         val tableRanks = tableCards.map { it.rank }.toSet()
         return myCards
@@ -114,9 +146,6 @@ class GameState(
             )
     }
 
-    /**
-     * Статистика для отображения.
-     */
     fun getStats(): GameStats {
         val unknownTrumps = unknownCards.count { it.suit == trumpSuit }
         val myTrumps = myCards.count { it.suit == trumpSuit }
@@ -127,6 +156,7 @@ class GameState(
             myCardsCount = myCards.size,
             tableCardsCount = tableCards.size,
             discardedCount = discardedCards.size,
+            remainingInDeck = remainingInDeck,
             remainingUnknown = unknownCards.size,
             myTrumps = myTrumps,
             unknownTrumps = unknownTrumps,
@@ -134,28 +164,26 @@ class GameState(
         )
     }
 
-    /**
-     * Текстовая подсказка для текущей ситуации.
-     */
     fun getAdvice(): String {
         val stats = getStats()
         val advice = StringBuilder()
 
-        // Анализ козырей
         if (stats.unknownTrumps == 0 && stats.myTrumps > 0) {
             advice.appendLine("У противников нет козырей! Атакуй смело.")
         } else if (stats.myTrumps == 0) {
             advice.appendLine("У тебя нет козырей — берегись козырных атак!")
         } else if (stats.myTrumps >= 3) {
-            advice.appendLine("Хороший запас козырей (${stats.myTrumps}). Можно играть агрессивно.")
+            advice.appendLine("Хороший запас козырей (${stats.myTrumps}). Играй агрессивно.")
         }
 
-        // Анализ колоды
+        if (stats.remainingInDeck <= 4) {
+            advice.appendLine("Колода почти пуста! Считай карты.")
+        }
+
         if (stats.remainingUnknown <= 6) {
-            advice.appendLine("Осталось мало неизвестных карт (${stats.remainingUnknown}). Считай карты!")
+            advice.appendLine("Мало неизвестных карт (${stats.remainingUnknown}). Считай!")
         }
 
-        // Анализ козырных угроз
         val highTrumpsInUnknown = unknownCards.count {
             it.suit == trumpSuit && it.rank.value >= Rank.QUEEN.value
         }
@@ -163,27 +191,31 @@ class GameState(
             advice.appendLine("Внимание: $highTrumpsInUnknown старших козырей ещё не видно.")
         }
 
-        // Общий совет по стратегии
-        if (myCards.size <= 3 && stats.remainingUnknown == 0) {
-            advice.appendLine("Финал игры! Разыгрывай оставшиеся карты аккуратно.")
+        if (myCards.size <= 3 && stats.remainingInDeck == 0) {
+            advice.appendLine("Финал! Разыгрывай аккуратно.")
+        }
+
+        if (tableCards.isNotEmpty()) {
+            val throwIns = suggestThrowIn()
+            if (throwIns.isNotEmpty()) {
+                advice.appendLine("Можно подкинуть: ${throwIns.joinToString(" ") { it.displayName }}")
+            }
         }
 
         if (advice.isEmpty()) {
-            advice.appendLine("Играй стабильно: бей мелкими, береги козыри.")
+            advice.appendLine("Бей мелкими, береги козыри.")
         }
 
         return advice.toString().trim()
     }
 }
 
-/**
- * Статистика текущей игры.
- */
 data class GameStats(
     val totalCards: Int,
     val myCardsCount: Int,
     val tableCardsCount: Int,
     val discardedCount: Int,
+    val remainingInDeck: Int,
     val remainingUnknown: Int,
     val myTrumps: Int,
     val unknownTrumps: Int,

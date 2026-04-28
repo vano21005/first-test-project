@@ -1,136 +1,363 @@
 package com.durakhelper
 
 import android.graphics.Bitmap
-import android.graphics.Color
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import android.util.Base64
+import android.util.Log
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 
 /**
- * Распознавание карт с экрана через ML Kit OCR + анализ цвета.
- *
- * Карты в игре «Дурак онлайн» имеют подписи:
- *   6, 7, 8, 9, 10, В, Д, К, Т (номинал)
- *   и символы мастей ♠ ♥ ♦ ♣
- *
- * Нижняя часть экрана (~30%) — карты игрока.
- * Центр экрана (~30-60%) — карты на столе.
+ * Распознавание карт с экрана через AI Vision API.
+ * Поддерживает GigaChat (загрузка файла + attachments) и OpenAI (base64 inline).
  */
-class CardRecognizer {
+class CardRecognizer(
+    private val apiType: AiHelper.ApiType,
+    private val credentials: String
+) {
+    companion object {
+        private const val TAG = "CardRecognizer"
 
-    private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        private val SUIT_MAP = mapOf(
+            "♠" to Suit.SPADES, "♥" to Suit.HEARTS,
+            "♦" to Suit.DIAMONDS, "♣" to Suit.CLUBS,
+            "пики" to Suit.SPADES, "черви" to Suit.HEARTS,
+            "бубны" to Suit.DIAMONDS, "трефы" to Suit.CLUBS
+        )
 
-    /** Маппинг текста в номинал. */
-    private val rankMap = mapOf(
-        "6" to Rank.SIX,
-        "7" to Rank.SEVEN,
-        "8" to Rank.EIGHT,
-        "9" to Rank.NINE,
-        "10" to Rank.TEN,
-        "В" to Rank.JACK, "B" to Rank.JACK, "J" to Rank.JACK,
-        "Д" to Rank.QUEEN, "Q" to Rank.QUEEN, "D" to Rank.QUEEN,
-        "К" to Rank.KING, "K" to Rank.KING,
-        "Т" to Rank.ACE, "T" to Rank.ACE, "A" to Rank.ACE
-    )
+        private val RANK_MAP = mapOf(
+            "6" to Rank.SIX, "7" to Rank.SEVEN, "8" to Rank.EIGHT,
+            "9" to Rank.NINE, "10" to Rank.TEN,
+            "В" to Rank.JACK, "J" to Rank.JACK,
+            "Д" to Rank.QUEEN, "Q" to Rank.QUEEN,
+            "К" to Rank.KING, "K" to Rank.KING,
+            "Т" to Rank.ACE, "A" to Rank.ACE, "T" to Rank.ACE
+        )
+    }
 
-    /**
-     * Результат распознавания экрана.
-     */
+    @Volatile
+    private var isProcessing = false
+
+    private var gigaChatAccessToken: String? = null
+    private var tokenExpiry: Long = 0
+
+    private val client: OkHttpClient by lazy {
+        if (apiType == AiHelper.ApiType.GIGACHAT) {
+            buildUnsafeClient()
+        } else {
+            OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .build()
+        }
+    }
+
+    /** Результат распознавания экрана. */
     data class RecognitionResult(
         val myCards: Set<Card>,
         val tableCards: Set<Card>,
-        val rawTexts: List<String>
+        val trumpSuit: Suit?,
+        val deckCount: Int?,
+        val rawResponse: String
     )
 
-    /**
-     * Распознать карты на скриншоте.
-     * @param bitmap скриншот экрана
-     * @param callback результат распознавания
-     */
+    /** Распознать карты на скриншоте через AI Vision. */
     fun recognizeCards(bitmap: Bitmap, callback: (RecognitionResult) -> Unit) {
-        val image = InputImage.fromBitmap(bitmap, 0)
-        val height = bitmap.height
+        if (isProcessing) {
+            callback(RecognitionResult(emptySet(), emptySet(), null, null, "Идёт обработка..."))
+            return
+        }
 
-        recognizer.process(image)
-            .addOnSuccessListener { visionText ->
-                val myCards = mutableSetOf<Card>()
-                val tableCards = mutableSetOf<Card>()
-                val rawTexts = mutableListOf<String>()
-
-                for (block in visionText.textBlocks) {
-                    for (line in block.lines) {
-                        for (element in line.elements) {
-                            val text = element.text.trim().uppercase()
-                            rawTexts.add(text)
-
-                            val rank = rankMap[text] ?: continue
-                            val boundingBox = element.boundingBox ?: continue
-
-                            // Определить масть по цвету пикселей рядом с текстом
-                            val suit = detectSuitByColor(
-                                bitmap,
-                                boundingBox.centerX(),
-                                boundingBox.centerY()
-                            )
-
-                            val card = Card(rank, suit)
-
-                            // Нижние 35% экрана — мои карты
-                            // Центр (25%-65%) — карты на столе
-                            val relativeY = boundingBox.centerY().toFloat() / height
-                            when {
-                                relativeY > 0.65f -> myCards.add(card)
-                                relativeY in 0.25f..0.65f -> tableCards.add(card)
-                            }
-                        }
-                    }
+        isProcessing = true
+        Thread {
+            try {
+                val result = when (apiType) {
+                    AiHelper.ApiType.GIGACHAT -> analyzeWithGigaChat(bitmap)
+                    AiHelper.ApiType.OPENAI -> analyzeWithOpenAI(bitmap)
                 }
-
-                callback(RecognitionResult(myCards, tableCards, rawTexts))
+                callback(result)
+            } catch (e: Exception) {
+                Log.e(TAG, "Ошибка распознавания", e)
+                callback(RecognitionResult(
+                    emptySet(), emptySet(), null, null,
+                    "Ошибка: ${e.message}"
+                ))
+            } finally {
+                isProcessing = false
             }
-            .addOnFailureListener {
-                callback(RecognitionResult(emptySet(), emptySet(), listOf("Ошибка: ${it.message}")))
-            }
+        }.start()
     }
 
-    /**
-     * Определить масть по доминирующему цвету вокруг текста.
-     * Красный → Черви или Бубны
-     * Чёрный → Пики или Трефы
-     */
-    private fun detectSuitByColor(bitmap: Bitmap, cx: Int, cy: Int): Suit {
-        val radius = 15
-        var redCount = 0
-        var blackCount = 0
+    private val analysisPrompt = """Ты анализируешь скриншот карточной игры "Дурак онлайн". Определи ВСЕ видимые карты.
 
-        val startX = (cx - radius).coerceAtLeast(0)
-        val endX = (cx + radius).coerceAtMost(bitmap.width - 1)
-        val startY = (cy - radius).coerceAtLeast(0)
-        val endY = (cy + radius).coerceAtMost(bitmap.height - 1)
+ОТВЕТЬ СТРОГО в формате JSON без markdown и пояснений:
+{"my_cards":["6♠","7♥"],"table_cards":["8♠","9♣"],"trump":"♥","deck_count":12}
 
-        for (x in startX..endX step 3) {
-            for (y in startY..endY step 3) {
-                val pixel = bitmap.getPixel(x, y)
-                val r = Color.red(pixel)
-                val g = Color.green(pixel)
-                val b = Color.blue(pixel)
+Правила:
+- my_cards: карты в НИЖНЕЙ части экрана (мои, открытые лицом вверх)
+- table_cards: ВСЕ карты в ЦЕНТРЕ экрана (атакующие и защитные)
+- trump: символ масти козыря (видна внизу колоды или как карта под колодой)
+- deck_count: число оставшихся карт в колоде (если видно число)
+- Номиналы: 6,7,8,9,10,В(валет),Д(дама),К(король),Т(туз)
+- Масти: ♠(пики),♥(черви),♦(бубны),♣(трефы)
+- Пустой массив [] если нет карт в зоне
+- null если не определяется""".trim()
 
-                if (r > 150 && g < 100 && b < 100) {
-                    redCount++
-                } else if (r < 80 && g < 80 && b < 80) {
-                    blackCount++
-                }
+    // ---------- GigaChat Vision ----------
+
+    private fun ensureGigaChatToken() {
+        if (gigaChatAccessToken != null && System.currentTimeMillis() < tokenExpiry) return
+
+        val tokenRequest = Request.Builder()
+            .url("https://ngw.devices.sberbank.ru:9443/api/v2/oauth")
+            .post("scope=GIGACHAT_API_PERS".toRequestBody(
+                "application/x-www-form-urlencoded".toMediaType()
+            ))
+            .addHeader("Authorization", "Basic $credentials")
+            .addHeader("RqUID", java.util.UUID.randomUUID().toString())
+            .build()
+
+        val response = client.newCall(tokenRequest).execute()
+        val body = response.body?.string() ?: throw Exception("Пустой ответ при получении токена")
+        val json = JSONObject(body)
+
+        if (!json.has("access_token")) {
+            throw Exception("Ошибка авторизации GigaChat: $body")
+        }
+
+        gigaChatAccessToken = json.getString("access_token")
+        tokenExpiry = System.currentTimeMillis() + 25 * 60 * 1000
+    }
+
+    private fun analyzeWithGigaChat(bitmap: Bitmap): RecognitionResult {
+        ensureGigaChatToken()
+        val token = gigaChatAccessToken ?: throw Exception("Нет токена GigaChat")
+
+        // 1. Загрузить изображение в хранилище GigaChat
+        val jpegBytes = bitmapToJpegBytes(bitmap)
+        val fileBody = jpegBytes.toRequestBody("image/jpeg".toMediaType())
+        val multipart = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("file", "screenshot.jpg", fileBody)
+            .addFormDataPart("purpose", "general")
+            .build()
+
+        val uploadRequest = Request.Builder()
+            .url("https://gigachat.devices.sberbank.ru/api/v1/files")
+            .post(multipart)
+            .addHeader("Authorization", "Bearer $token")
+            .build()
+
+        val uploadResponse = client.newCall(uploadRequest).execute()
+        val uploadBody = uploadResponse.body?.string()
+            ?: throw Exception("Пустой ответ при загрузке файла")
+        val uploadJson = JSONObject(uploadBody)
+
+        if (!uploadJson.has("id")) {
+            throw Exception("Ошибка загрузки: $uploadBody")
+        }
+        val fileId = uploadJson.getString("id")
+
+        // 2. Запросить анализ изображения
+        val messagesArray = JSONArray().apply {
+            put(JSONObject().apply {
+                put("role", "user")
+                put("content", analysisPrompt)
+                put("attachments", JSONArray().apply { put(fileId) })
+            })
+        }
+
+        val body = JSONObject().apply {
+            put("model", "GigaChat-Pro")
+            put("messages", messagesArray)
+            put("temperature", 0.1)
+            put("stream", false)
+        }
+
+        val chatRequest = Request.Builder()
+            .url("https://gigachat.devices.sberbank.ru/api/v1/chat/completions")
+            .post(body.toString().toRequestBody("application/json".toMediaType()))
+            .addHeader("Authorization", "Bearer $token")
+            .build()
+
+        val chatResponse = client.newCall(chatRequest).execute()
+        val chatBody = chatResponse.body?.string()
+            ?: throw Exception("Пустой ответ от GigaChat")
+
+        val chatJson = JSONObject(chatBody)
+        if (!chatJson.has("choices")) {
+            throw Exception("Ошибка GigaChat: $chatBody")
+        }
+
+        val content = chatJson.getJSONArray("choices")
+            .getJSONObject(0)
+            .getJSONObject("message")
+            .getString("content")
+
+        return parseAiResponse(content)
+    }
+
+    // ---------- OpenAI Vision ----------
+
+    private fun analyzeWithOpenAI(bitmap: Bitmap): RecognitionResult {
+        val base64 = bitmapToBase64(bitmap)
+
+        val contentArray = JSONArray().apply {
+            put(JSONObject().apply {
+                put("type", "text")
+                put("text", analysisPrompt)
+            })
+            put(JSONObject().apply {
+                put("type", "image_url")
+                put("image_url", JSONObject().apply {
+                    put("url", "data:image/jpeg;base64,$base64")
+                    put("detail", "high")
+                })
+            })
+        }
+
+        val messagesArray = JSONArray().apply {
+            put(JSONObject().apply {
+                put("role", "user")
+                put("content", contentArray)
+            })
+        }
+
+        val body = JSONObject().apply {
+            put("model", "gpt-4o-mini")
+            put("messages", messagesArray)
+            put("max_tokens", 500)
+            put("temperature", 0.1)
+        }
+
+        val request = Request.Builder()
+            .url("https://api.openai.com/v1/chat/completions")
+            .post(body.toString().toRequestBody("application/json".toMediaType()))
+            .addHeader("Authorization", "Bearer $credentials")
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseStr = response.body?.string() ?: throw Exception("Пустой ответ OpenAI")
+        val json = JSONObject(responseStr)
+
+        if (!json.has("choices")) {
+            throw Exception("Ошибка OpenAI: $responseStr")
+        }
+
+        val content = json.getJSONArray("choices")
+            .getJSONObject(0)
+            .getJSONObject("message")
+            .getString("content")
+
+        return parseAiResponse(content)
+    }
+
+    // ---------- Парсинг ответа AI ----------
+
+    private fun parseAiResponse(content: String): RecognitionResult {
+        try {
+            val jsonStr = content
+                .replace("```json", "").replace("```", "")
+                .trim()
+
+            val json = JSONObject(jsonStr)
+
+            val myCards = parseCardArray(json.optJSONArray("my_cards"))
+            val tableCards = parseCardArray(json.optJSONArray("table_cards"))
+
+            val trumpStr = json.optString("trump", "").trim()
+            val trumpSuit = if (trumpStr.isNotEmpty() && trumpStr != "null") {
+                SUIT_MAP[trumpStr] ?: SUIT_MAP[trumpStr.lowercase()]
+            } else null
+
+            val deckCount = if (json.has("deck_count") && !json.isNull("deck_count")) {
+                json.optInt("deck_count", -1).let { if (it >= 0) it else null }
+            } else null
+
+            Log.d(TAG, "Распознано: мои=${myCards.size}, стол=${tableCards.size}, " +
+                    "козырь=$trumpSuit, колода=$deckCount")
+
+            return RecognitionResult(myCards, tableCards, trumpSuit, deckCount, content)
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка парсинга: $content", e)
+            return RecognitionResult(
+                emptySet(), emptySet(), null, null,
+                "Ошибка парсинга: ${e.message}\n$content"
+            )
+        }
+    }
+
+    private fun parseCardArray(array: JSONArray?): Set<Card> {
+        if (array == null) return emptySet()
+        val cards = mutableSetOf<Card>()
+
+        for (i in 0 until array.length()) {
+            val cardStr = array.getString(i).trim()
+            val card = parseCardString(cardStr)
+            if (card != null) {
+                cards.add(card)
+            } else {
+                Log.w(TAG, "Не удалось распознать карту: $cardStr")
             }
         }
 
-        // Красные масти: Черви / Бубны (не различаем точно — берём Черви по умолчанию)
-        // Чёрные масти: Пики / Трефы (берём Пики по умолчанию)
-        // Более точное определение потребует распознавания символа масти
-        return if (redCount > blackCount) Suit.HEARTS else Suit.SPADES
+        return cards
     }
 
-    /** Освободить ресурсы. */
-    fun close() {
-        recognizer.close()
+    private fun parseCardString(str: String): Card? {
+        if (str.length < 2) return null
+
+        val suitChar = str.last().toString()
+        val rankStr = str.dropLast(1).trim()
+
+        val suit = SUIT_MAP[suitChar] ?: return null
+        val rank = RANK_MAP[rankStr] ?: return null
+
+        return Card(rank, suit)
     }
+
+    // ---------- Утилиты ----------
+
+    private fun bitmapToJpegBytes(bitmap: Bitmap): ByteArray {
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+        return stream.toByteArray()
+    }
+
+    private fun bitmapToBase64(bitmap: Bitmap): String {
+        return Base64.encodeToString(bitmapToJpegBytes(bitmap), Base64.NO_WRAP)
+    }
+
+    private fun buildUnsafeClient(): OkHttpClient {
+        val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+            override fun checkClientTrusted(
+                chain: Array<java.security.cert.X509Certificate>, authType: String
+            ) {}
+            override fun checkServerTrusted(
+                chain: Array<java.security.cert.X509Certificate>, authType: String
+            ) {}
+            override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = arrayOf()
+        })
+
+        val sslContext = SSLContext.getInstance("SSL")
+        sslContext.init(null, trustAllCerts, java.security.SecureRandom())
+
+        return OkHttpClient.Builder()
+            .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
+            .hostnameVerifier { _, _ -> true }
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
+
+    fun close() { /* ресурсов для освобождения нет */ }
 }

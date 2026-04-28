@@ -6,12 +6,12 @@
     android:background="#CC1B5E20"
     android:padding="4dp">
 
-    <!-- Кнопка свернуть/развернуть (всегда видна) -->
+    <!-- Кнопка свернуть/развернуть -->
     <Button
         android:id="@+id/btnToggle"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:text="\u2660"
+        android:text="♠"
         android:textSize="20sp"
         android:textColor="#FFFFFF"
         android:backgroundTint="#4CAF50"
@@ -22,7 +22,7 @@
     <!-- Развёрнутая панель -->
     <LinearLayout
         android:id="@+id/panelExpanded"
-        android:layout_width="280dp"
+        android:layout_width="290dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:background="#E61B5E20"
@@ -34,10 +34,23 @@
             android:id="@+id/tvOverlayStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Готов к сканированию"
+            android:text="Готов к сканированию (AI Vision)"
             android:textColor="#FFD54F"
             android:textSize="12sp"
             android:layout_marginBottom="4dp" />
+
+        <!-- Козырь -->
+        <TextView
+            android:id="@+id/tvOverlayTrump"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Козырь: определяется..."
+            android:textColor="#FF5722"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:background="#33FF5722"
+            android:padding="4dp"
+            android:layout_marginBottom="2dp" />
 
         <!-- Мои карты -->
         <TextView
@@ -68,7 +81,7 @@
             android:id="@+id/tvOverlayStats"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Бито: 0 | Неизв: 36 | Козыри: 0/9"
+            android:text="Бито: 0 | Колода: ? | Козыри: 0/9"
             android:textColor="#C8E6C9"
             android:textSize="11sp"
             android:layout_marginBottom="4dp" />
@@ -78,14 +91,14 @@
             android:id="@+id/tvOverlayAdvice"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Подсказка появится после сканирования"
+            android:text="Нажмите Скан для анализа"
             android:textColor="#FFD54F"
             android:textSize="12sp"
             android:background="#33000000"
             android:padding="4dp"
             android:layout_marginBottom="4dp" />
 
-        <!-- Кнопки управления -->
+        <!-- Кнопки сканирования -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -121,6 +134,7 @@
                 android:layout_marginStart="2dp" />
         </LinearLayout>
 
+        <!-- Кнопки раунда -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
