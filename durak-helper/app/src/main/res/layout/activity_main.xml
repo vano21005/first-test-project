@@ -14,15 +14,15 @@
         android:textColor="#FFFFFF"
         android:textSize="28sp"
         android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="4dp" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Помощник для карточной игры"
+        android:text="Оверлей поверх игры"
         android:textColor="#C8E6C9"
-        android:textSize="16sp"
-        android:layout_marginBottom="40dp" />
+        android:textSize="14sp"
+        android:layout_marginBottom="32dp" />
 
     <TextView
         android:layout_width="match_parent"
@@ -52,17 +52,27 @@
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:background="#FFFFFF"
-        android:layout_marginBottom="40dp" />
+        android:layout_marginBottom="32dp" />
 
     <Button
         android:id="@+id/btnStartGame"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:text="Начать игру"
+        android:text="Запустить помощник"
         android:textSize="18sp"
         android:backgroundTint="#4CAF50"
         android:textColor="#FFFFFF"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="12dp" />
+
+    <TextView
+        android:id="@+id/tvOverlayStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Нажмите кнопку для запуска оверлея"
+        android:textColor="#FFD54F"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
 
     <Button
         android:id="@+id/btnSettings"
@@ -72,5 +82,13 @@
         android:textSize="14sp"
         android:backgroundTint="#2E7D32"
         android:textColor="#C8E6C9" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Как работает:\n1. Выберите козырь и игроков\n2. Нажмите «Запустить помощник»\n3. Разрешите показ поверх и захват экрана\n4. Откройте игру «Дурак»\n5. Нажимайте ♠ для сканирования"
+        android:textColor="#A5D6A7"
+        android:textSize="12sp"
+        android:layout_marginTop="24dp" />
 
 </LinearLayout>

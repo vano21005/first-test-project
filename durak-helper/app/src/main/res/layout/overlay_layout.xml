@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#CC1B5E20"
+    android:padding="4dp">
+
+    <!-- Кнопка свернуть/развернуть (всегда видна) -->
+    <Button
+        android:id="@+id/btnToggle"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:text="\u2660"
+        android:textSize="20sp"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#4CAF50"
+        android:padding="0dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp" />
+
+    <!-- Развёрнутая панель -->
+    <LinearLayout
+        android:id="@+id/panelExpanded"
+        android:layout_width="280dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#E61B5E20"
+        android:padding="8dp"
+        android:visibility="gone">
+
+        <!-- Статус -->
+        <TextView
+            android:id="@+id/tvOverlayStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Готов к сканированию"
+            android:textColor="#FFD54F"
+            android:textSize="12sp"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Мои карты -->
+        <TextView
+            android:id="@+id/tvOverlayMyCards"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Мои: —"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:background="#33FFFFFF"
+            android:padding="4dp"
+            android:layout_marginBottom="2dp" />
+
+        <!-- Карты на столе -->
+        <TextView
+            android:id="@+id/tvOverlayTableCards"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Стол: —"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:background="#33FF9800"
+            android:padding="4dp"
+            android:layout_marginBottom="2dp" />
+
+        <!-- Статистика -->
+        <TextView
+            android:id="@+id/tvOverlayStats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Бито: 0 | Неизв: 36 | Козыри: 0/9"
+            android:textColor="#C8E6C9"
+            android:textSize="11sp"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Подсказка -->
+        <TextView
+            android:id="@+id/tvOverlayAdvice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Подсказка появится после сканирования"
+            android:textColor="#FFD54F"
+            android:textSize="12sp"
+            android:background="#33000000"
+            android:padding="4dp"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Кнопки управления -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="4dp">
+
+            <Button
+                android:id="@+id/btnOverlayScan"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:text="Скан"
+                android:textSize="11sp"
+                android:backgroundTint="#2196F3"
+                android:textColor="#FFFFFF"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:layout_marginEnd="2dp" />
+
+            <Button
+                android:id="@+id/btnOverlayAutoScan"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:text="Авто: ВЫКЛ"
+                android:textSize="10sp"
+                android:backgroundTint="#FF9800"
+                android:textColor="#FFFFFF"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:layout_marginStart="2dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="4dp">
+
+            <Button
+                android:id="@+id/btnOverlayDiscard"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:text="Бито"
+                android:textSize="11sp"
+                android:backgroundTint="#78909C"
+                android:textColor="#FFFFFF"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:layout_marginEnd="2dp" />
+
+            <Button
+                android:id="@+id/btnOverlayTake"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:text="Забрали"
+                android:textSize="11sp"
+                android:backgroundTint="#5D4037"
+                android:textColor="#FFFFFF"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp" />
+
+            <Button
+                android:id="@+id/btnOverlayReset"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:text="Сброс"
+                android:textSize="11sp"
+                android:backgroundTint="#D32F2F"
+                android:textColor="#FFFFFF"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:layout_marginStart="2dp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnOverlayClose"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:text="Закрыть помощник"
+            android:textSize="11sp"
+            android:backgroundTint="#B71C1C"
+            android:textColor="#FFFFFF"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="0dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

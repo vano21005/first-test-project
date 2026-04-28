@@ -42,4 +42,7 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.json:json:20231013")
+
+    // ML Kit — распознавание текста (офлайн, номиналы карт: 6-10, В/Д/К/Т)
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }
