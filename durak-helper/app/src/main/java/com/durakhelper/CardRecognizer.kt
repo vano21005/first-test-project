@@ -103,36 +103,53 @@ class CardRecognizer(
         }.start()
     }
 
-    private val analysisPrompt = """Ты анализируешь скриншот мобильной карточной игры "Дурак онлайн" (com.rstgames.durak).
+    private val handPrompt = """Ты видишь ТОЛЬКО нижнюю часть экрана с МОИМИ картами в игре "Дурак онлайн".
 
-РАСПОЛОЖЕНИЕ ЭЛЕМЕНТОВ НА ЭКРАНЕ (сверху вниз):
-1. ВЕРХ (0-15% экрана): аватары противников с рубашками их карт
-2. ЛЕВЫЙ КРАЙ (примерно 30-50% высоты): КОЗЫРНАЯ КАРТА — маленькая открытая карта, лежащая боком. Рядом ЧИСЛО — количество карт в колоде
-3. ЦЕНТР (30-70% высоты): СТОЛ — карты текущего раунда. Атакующая карта слева, бьющая карта сверху справа (под углом). Пар может быть несколько (до 6)
-4. НИЗ (75-95% высоты): МОИ КАРТЫ — крупные карты веером, открытые лицом вверх. Это главная зона
-5. САМЫЙ НИЗ: панель с кнопками (Беру/Бито/Пас/Ваш ход) и аватар игрока
+Задача: перечисли только мои карты снизу слева направо.
 
-КАРТЫ В ЭТОЙ ИГРЕ:
-- Номиналы русские: 6, 7, 8, 9, 10, В (валет/jack), Д (дама/queen), К (король/king), Т (туз/ace)
-- Масти по символам: ♠ (пики/чёрные), ♥ (черви/красные), ♦ (бубны/красные), ♣ (трефы/чёрные)
-- На картинках карт номинал в верхнем левом углу, масть сразу под ним
-- Чёрные масти (♠♣) — чёрный текст/символы, красные масти (♥♦) — красный текст/символы
+Правила распознавания:
+- Номиналы: 6, 7, 8, 9, 10, В, Д, К, Т
+- Сначала определи ЦВЕТ масти: красный -> только ♥ или ♦, чёрный -> только ♠ или ♣
+- Потом определи ФОРМУ знака: ♥ сердце, ♦ ромб, ♠ пика с ножкой, ♣ клевер из 3 лепестков
+- Не путай В, Д, К: это разные буквы в углу карты
+- 10 — двузначное число, не путай с Т
+- Игнорируй стол, аватары и кнопки
 
-КАК ОПРЕДЕЛИТЬ КОЗЫРЬ:
-- Маленькая открытая карта на ЛЕВОМ краю экрана (обычно лежит боком/под углом)
-- Масть этой карты = козырная масть
-- Число рядом = количество карт в колоде
+Примеры из этой игры:
+- красная карта с ромбами = ♦
+- красная карта с сердцами = ♥
+- чёрная карта с клеверами = ♣
+- чёрная карта с пиками = ♠
 
-ВАЖНО:
-- Внимательно различай В (валет) и Д (дама) и К (король) — они все картинки с людьми, но буква в углу разная
-- 10 — единственный двузначный номинал
-- Если стол пустой (нет карт в центре) — table_cards: []
-- Считай КАЖДУЮ карту в моей руке отдельно
+Ответь строго JSON:
+{"cards":["10♥","В♥","К♥","9♦","В♦","6♣"]}""".trim()
 
-ОТВЕТЬ СТРОГО ОДНОЙ СТРОКОЙ JSON без markdown, без пояснений:
-{"my_cards":["6♠","В♥"],"table_cards":["8♣","10♦"],"trump":"♠","deck_count":12,"status":"ваш_ход"}
+    private val tablePrompt = """Ты видишь ТОЛЬКО центральную часть стола в игре "Дурак онлайн".
 
-Поле status — текст кнопки внизу: "ваш_ход", "беру", "бито", "пас" или null.""".trim()
+Задача: перечисли все открытые карты на столе. Если карта partially covered, всё равно распознай по видимой букве/масти.
+
+Правила:
+- Считывай только карты в центре, не мои карты снизу
+- Атакующие и отбивающие карты все входят в массив cards
+- Сначала определи цвет масти, потом форму знака
+- Если стол пустой, верни пустой массив
+
+Ответь строго JSON:
+{"cards":["9♦","9♣"]}""".trim()
+
+    private val metaPrompt = """Ты видишь полный скриншот игры "Дурак онлайн".
+
+Нужно определить только 3 вещи:
+1. trump — козырная масть по маленькой открытой карте на ЛЕВОМ краю
+2. deck_count — белое число слева рядом с колодой
+3. status — надпись на большой кнопке внизу слева: только "ваш_ход", "беру", "бито", "пас" или null
+
+Правила по козырю:
+- Сначала определи цвет масти: красный -> ♥/♦, чёрный -> ♠/♣
+- Потом форму знака: ♥ сердце, ♦ ромб, ♠ пика, ♣ клевер
+
+Ответь строго JSON:
+{"trump":"♣","deck_count":12,"status":"ваш_ход"}""".trim()
 
     // ---------- GigaChat Vision ----------
 
@@ -164,7 +181,38 @@ class CardRecognizer(
         ensureGigaChatToken()
         val token = gigaChatAccessToken ?: throw Exception("Нет токена GigaChat")
 
-        // 1. Загрузить изображение в хранилище GigaChat
+        val handBitmap = cropBottomHand(bitmap)
+        val tableBitmap = cropCenterTable(bitmap)
+
+        try {
+            val handJson = JSONObject(callGigaChat(token, handPrompt, handBitmap))
+            val tableJson = JSONObject(callGigaChat(token, tablePrompt, tableBitmap))
+            val metaJson = JSONObject(callGigaChat(token, metaPrompt, bitmap))
+            return buildRecognitionResult(handJson, tableJson, metaJson)
+        } finally {
+            handBitmap.recycle()
+            tableBitmap.recycle()
+        }
+    }
+
+    // ---------- OpenAI Vision ----------
+
+    private fun analyzeWithOpenAI(bitmap: Bitmap): RecognitionResult {
+        val handBitmap = cropBottomHand(bitmap)
+        val tableBitmap = cropCenterTable(bitmap)
+
+        try {
+            val handJson = JSONObject(callOpenAi(handPrompt, handBitmap))
+            val tableJson = JSONObject(callOpenAi(tablePrompt, tableBitmap))
+            val metaJson = JSONObject(callOpenAi(metaPrompt, bitmap))
+            return buildRecognitionResult(handJson, tableJson, metaJson)
+        } finally {
+            handBitmap.recycle()
+            tableBitmap.recycle()
+        }
+    }
+
+    private fun callGigaChat(token: String, prompt: String, bitmap: Bitmap): String {
         val jpegBytes = bitmapToJpegBytes(bitmap)
         val fileBody = jpegBytes.toRequestBody("image/jpeg".toMediaType())
         val multipart = MultipartBody.Builder()
@@ -183,17 +231,15 @@ class CardRecognizer(
         val uploadBody = uploadResponse.body?.string()
             ?: throw Exception("Пустой ответ при загрузке файла")
         val uploadJson = JSONObject(uploadBody)
-
         if (!uploadJson.has("id")) {
             throw Exception("Ошибка загрузки: $uploadBody")
         }
         val fileId = uploadJson.getString("id")
 
-        // 2. Запросить анализ изображения
         val messagesArray = JSONArray().apply {
             put(JSONObject().apply {
                 put("role", "user")
-                put("content", analysisPrompt)
+                put("content", prompt)
                 put("attachments", JSONArray().apply { put(fileId) })
             })
         }
@@ -212,31 +258,26 @@ class CardRecognizer(
             .build()
 
         val chatResponse = client.newCall(chatRequest).execute()
-        val chatBody = chatResponse.body?.string()
-            ?: throw Exception("Пустой ответ от GigaChat")
-
+        val chatBody = chatResponse.body?.string() ?: throw Exception("Пустой ответ от GigaChat")
         val chatJson = JSONObject(chatBody)
         if (!chatJson.has("choices")) {
             throw Exception("Ошибка GigaChat: $chatBody")
         }
-
-        val content = chatJson.getJSONArray("choices")
+        return chatJson.getJSONArray("choices")
             .getJSONObject(0)
             .getJSONObject("message")
             .getString("content")
-
-        return parseAiResponse(content)
+            .replace("```json", "")
+            .replace("```", "")
+            .trim()
     }
 
-    // ---------- OpenAI Vision ----------
-
-    private fun analyzeWithOpenAI(bitmap: Bitmap): RecognitionResult {
+    private fun callOpenAi(prompt: String, bitmap: Bitmap): String {
         val base64 = bitmapToBase64(bitmap)
-
         val contentArray = JSONArray().apply {
             put(JSONObject().apply {
                 put("type", "text")
-                put("text", analysisPrompt)
+                put("text", prompt)
             })
             put(JSONObject().apply {
                 put("type", "image_url")
@@ -247,17 +288,15 @@ class CardRecognizer(
             })
         }
 
-        val messagesArray = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "user")
-                put("content", contentArray)
-            })
-        }
-
         val body = JSONObject().apply {
             put("model", "gpt-4o-mini")
-            put("messages", messagesArray)
-            put("max_tokens", 500)
+            put("messages", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", contentArray)
+                })
+            })
+            put("max_tokens", 300)
             put("temperature", 0.1)
         }
 
@@ -270,17 +309,37 @@ class CardRecognizer(
         val response = client.newCall(request).execute()
         val responseStr = response.body?.string() ?: throw Exception("Пустой ответ OpenAI")
         val json = JSONObject(responseStr)
-
         if (!json.has("choices")) {
             throw Exception("Ошибка OpenAI: $responseStr")
         }
-
-        val content = json.getJSONArray("choices")
+        return json.getJSONArray("choices")
             .getJSONObject(0)
             .getJSONObject("message")
             .getString("content")
+            .replace("```json", "")
+            .replace("```", "")
+            .trim()
+    }
 
-        return parseAiResponse(content)
+    private fun buildRecognitionResult(
+        handJson: JSONObject,
+        tableJson: JSONObject,
+        metaJson: JSONObject
+    ): RecognitionResult {
+        val myCards = parseCardArray(handJson.optJSONArray("cards"))
+        val tableCards = parseCardArray(tableJson.optJSONArray("cards"))
+        val trumpStr = metaJson.optString("trump", "").trim()
+        val trumpSuit = if (trumpStr.isNotEmpty() && trumpStr != "null") {
+            SUIT_MAP[trumpStr] ?: SUIT_MAP[trumpStr.lowercase()]
+        } else null
+        val deckCount = if (metaJson.has("deck_count") && !metaJson.isNull("deck_count")) {
+            metaJson.optInt("deck_count", -1).let { if (it >= 0) it else null }
+        } else null
+        val gameStatus = metaJson.optString("status", "").let {
+            if (it.isNotEmpty() && it != "null") it else null
+        }
+        val raw = "hand=$handJson\ntable=$tableJson\nmeta=$metaJson"
+        return RecognitionResult(myCards, tableCards, trumpSuit, deckCount, raw, gameStatus = gameStatus)
     }
 
     // ---------- Парсинг ответа AI ----------
@@ -362,6 +421,22 @@ class CardRecognizer(
 
     private fun bitmapToBase64(bitmap: Bitmap): String {
         return Base64.encodeToString(bitmapToJpegBytes(bitmap), Base64.NO_WRAP)
+    }
+
+    private fun cropBottomHand(bitmap: Bitmap): Bitmap {
+        val x = (bitmap.width * 0.03f).toInt()
+        val y = (bitmap.height * 0.70f).toInt()
+        val width = (bitmap.width * 0.94f).toInt()
+        val height = (bitmap.height * 0.24f).toInt()
+        return Bitmap.createBitmap(bitmap, x, y, width, height)
+    }
+
+    private fun cropCenterTable(bitmap: Bitmap): Bitmap {
+        val x = (bitmap.width * 0.08f).toInt()
+        val y = (bitmap.height * 0.22f).toInt()
+        val width = (bitmap.width * 0.84f).toInt()
+        val height = (bitmap.height * 0.48f).toInt()
+        return Bitmap.createBitmap(bitmap, x, y, width, height)
     }
 
     private fun buildUnsafeClient(): OkHttpClient {
