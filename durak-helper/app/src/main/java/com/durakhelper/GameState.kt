@@ -177,54 +177,37 @@ class GameState(
     fun getAdvice(): String {
         val stats = getStats()
         val advice = StringBuilder()
-        val isAttacking = lastGameStatus == "ваш_ход" || lastGameStatus == "пас"
-        val isDefending = lastGameStatus == "беру"
 
-        // Ситуация: твой ход (атака)
-        if (isAttacking && tableCards.isEmpty()) {
+        // Атака: ходи самой мелкой некозырной
+        if (tableCards.isEmpty() && myCards.isNotEmpty()) {
             val attack = suggestAttack()
             if (attack.isNotEmpty()) {
-                val best = attack.first()
-                advice.appendLine("Ходи: ${best.displayName} (самая мелкая)")
+                advice.appendLine("Ходи: ${attack.first().displayName}")
             }
         }
 
-        // Ситуация: подкинуть карты
-        if (isAttacking && tableCards.isNotEmpty()) {
+        // Подкинуть
+        if (tableCards.isNotEmpty()) {
             val throwIns = suggestThrowIn()
             if (throwIns.isNotEmpty()) {
                 advice.appendLine("Подкинь: ${throwIns.joinToString(" ") { it.displayName }}")
-            } else {
-                advice.appendLine("Нечем подкинуть — пасуй")
-            }
-        }
-
-        // Ситуация: защита
-        if (isDefending && tableCards.isNotEmpty()) {
-            val unbeatCards = tableCards.filter { attackCard ->
-                suggestDefense(attackCard).isEmpty()
-            }
-            if (unbeatCards.isEmpty()) {
-                advice.appendLine("Можешь отбиться!")
-            } else {
-                advice.appendLine("Не можешь побить: ${unbeatCards.joinToString(" ") { it.displayName }}")
             }
         }
 
         // Козыри
         if (stats.unknownTrumps == 0 && stats.myTrumps > 0) {
             advice.appendLine("У противников нет козырей!")
-        } else if (stats.myTrumps == 0) {
-            advice.appendLine("Нет козырей — осторожно!")
+        } else if (stats.myTrumps == 0 && stats.unknownTrumps > 0) {
+            advice.appendLine("Нет козырей \u2014 осторожно!")
         } else if (stats.myTrumps >= 3) {
-            advice.appendLine("Козырей: ${stats.myTrumps} — играй смело")
+            advice.appendLine("Козырей: ${stats.myTrumps} \u2014 играй смело")
         }
 
         if (stats.remainingInDeck <= 4 && stats.remainingInDeck > 0) {
-            advice.appendLine("Колода: ${stats.remainingInDeck} — считай!")
+            advice.appendLine("Колода: ${stats.remainingInDeck} \u2014 считай!")
         }
 
-        if (stats.remainingUnknown <= 6) {
+        if (stats.remainingUnknown <= 6 && stats.remainingUnknown > 0) {
             advice.appendLine("Неизвестных: ${stats.remainingUnknown}")
         }
 
