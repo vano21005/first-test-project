@@ -23,23 +23,10 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="AI Vision — распознавание карт"
+            android:text="Офлайн-трекер без AI"
             android:textColor="#C8E6C9"
             android:textSize="14sp"
             android:layout_marginBottom="24dp" />
-
-        <!-- Статус API -->
-        <TextView
-            android:id="@+id/tvApiStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="API не настроен"
-            android:textColor="#FF5722"
-            android:textSize="14sp"
-            android:gravity="center"
-            android:background="#33000000"
-            android:padding="8dp"
-            android:layout_marginBottom="16dp" />
 
         <TextView
             android:layout_width="match_parent"
@@ -54,13 +41,28 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:background="#FFFFFF"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Козырная масть:"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/spinnerTrump"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="#FFFFFF"
             android:layout_marginBottom="24dp" />
 
         <Button
             android:id="@+id/btnStartGame"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="Запустить помощник"
+            android:text="Открыть трекер карт"
             android:textSize="18sp"
             android:backgroundTint="#4CAF50"
             android:textColor="#FFFFFF"
@@ -70,29 +72,18 @@
             android:id="@+id/tvOverlayStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Нажмите кнопку для запуска"
+            android:text="Выберите число игроков и козырь"
             android:textColor="#FFD54F"
             android:textSize="14sp"
             android:gravity="center"
             android:layout_marginBottom="16dp" />
 
-        <Button
-            android:id="@+id/btnSettings"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Настройки AI"
-            android:textSize="14sp"
-            android:backgroundTint="#2E7D32"
-            android:textColor="#C8E6C9"
-            android:layout_marginBottom="24dp" />
-
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Как работает:\n1. Настройте API-ключ (GigaChat или OpenAI)\n2. Выберите число игроков\n3. Нажмите «Запустить помощник»\n4. Разрешите показ поверх и захват экрана\n5. Откройте игру «Дурак онлайн»\n6. Нажмите ♠ → Скан (или Авто)\n\nAI Vision определит:\n• Ваши карты\n• Карты на столе\n• Козырную масть\n• Количество карт в колоде"
+            android:text="Как работает:\n1. Выберите число игроков и козырь\n2. Откройте трекер\n3. Нажимайте на карты в сетке\n4. Режимы: Мои / Стол / Бито / Убрать\n5. Кнопки «Стол → бито» и «Стол забрали» обновляют учёт\n\nПриложение локально показывает:\n• какие карты уже вышли\n• какие козыри остались\n• какие карты ещё неизвестны\n• простые подсказки без интернета"
             android:textColor="#A5D6A7"
             android:textSize="12sp" />
 
     </LinearLayout>
-
 </ScrollView>

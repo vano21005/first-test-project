@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#1B5E20">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Офлайн-трекер карт"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Отмечайте карты вручную: мои, на столе, бито. Помощник сам покажет, что осталось в игре."
+            android:textColor="#C8E6C9"
+            android:textSize="13sp"
+            android:layout_marginBottom="12dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Spinner
+                android:id="@+id/spinnerTrackerPlayers"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="#FFFFFF"
+                android:layout_marginEnd="4dp" />
+
+            <Spinner
+                android:id="@+id/spinnerTrackerTrump"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="#FFFFFF"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/btnTrackerApplyConfig"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:text="Применить"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#2E7D32"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btnTrackerReset"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:text="Новая игра"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#C62828"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/btnModeMy"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Мои"
+                android:textColor="#FFFFFF"
+                android:layout_marginEnd="2dp" />
+
+            <Button
+                android:id="@+id/btnModeTable"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Стол"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp" />
+
+            <Button
+                android:id="@+id/btnModeDiscard"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Бито"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp" />
+
+            <Button
+                android:id="@+id/btnModeRemove"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Убрать"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="2dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvTrackerMyCards"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Мои: —"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:background="#332E7D32"
+            android:padding="6dp"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/tvTrackerTableCards"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Стол: —"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:background="#331565C0"
+            android:padding="6dp"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/tvTrackerDiscarded"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Бито: —"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:background="#336D4C41"
+            android:padding="6dp"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/tvTrackerStats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Статистика"
+            android:textColor="#C8E6C9"
+            android:textSize="12sp"
+            android:background="#33000000"
+            android:padding="6dp"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/tvTrackerAdvice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Подсказки"
+            android:textColor="#FFD54F"
+            android:textSize="12sp"
+            android:background="#33000000"
+            android:padding="6dp"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/btnTrackerDiscardTable"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_weight="1"
+                android:text="Стол → бито"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#78909C"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btnTrackerTakeTable"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_weight="1"
+                android:text="Стол забрали"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#5D4037"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnTrackerClearTable"
+            android:layout_width="match_parent"
+            android:layout_height="42dp"
+            android:text="Очистить стол"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#455A64"
+            android:layout_marginBottom="8dp" />
+
+        <GridLayout
+            android:id="@+id/gridCards"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="4"
+            android:alignmentMode="alignMargins"
+            android:useDefaultMargins="false"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnTrackerBack"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:text="Назад"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#37474F" />
+
+    </LinearLayout>
+</ScrollView>
