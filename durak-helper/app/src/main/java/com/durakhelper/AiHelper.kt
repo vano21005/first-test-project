@@ -50,24 +50,37 @@ class AiHelper(
 
     private fun buildPrompt(gameState: GameState): String {
         val stats = gameState.getStats()
-        val myCardsStr = gameState.myCards.joinToString(", ") { it.displayName }
+        val myCardsStr = gameState.myCards
+            .sortedWith(compareBy<Card> { it.suit.ordinal }.thenBy { it.rank.value })
+            .joinToString(", ") { it.displayName }
         val tableCardsStr = if (gameState.tableCards.isEmpty()) "пусто"
             else gameState.tableCards.joinToString(", ") { it.displayName }
-        val trumpStr = gameState.trumpSuit.displayName
+        val discardedStr = if (gameState.discardedCards.isEmpty()) "пусто"
+            else gameState.discardedCards
+                .sortedWith(compareBy<Card> { it.suit.ordinal }.thenBy { it.rank.value })
+                .joinToString(", ") { it.displayName }
+        val unknownStr = gameState.unknownCards
+            .sortedWith(compareBy<Card> { it.suit.ordinal }.thenBy { it.rank.value })
+            .joinToString(", ") { it.displayName }
+        val trumpStr = "${gameState.trumpSuit.symbol} ${gameState.trumpSuit.displayName}"
 
         return """
-            Ты — эксперт по карточной игре "Дурак" (36 карт). Помоги выиграть.
+            Ты — эксперт по карточной игре "Дурак" (36 карт, от 6 до Туза). Помоги выиграть.
             
             Козырь: $trumpStr
-            Мои карты: $myCardsStr
+            Мои карты (${stats.myCardsCount}): $myCardsStr
             На столе: $tableCardsStr
-            Сброшено карт: ${stats.discardedCount}
-            Неизвестных карт: ${stats.remainingUnknown}
+            Бито (${stats.discardedCount}): $discardedStr
+            Неизвестные карты (${stats.remainingUnknown}): $unknownStr
             Моих козырей: ${stats.myTrumps}
-            Козырей у противников (макс.): ${stats.unknownTrumps}
+            Козырей у противников (возможно): ${stats.unknownTrumps}
+            Карт в колоде: ${stats.remainingInDeck}
             
-            Дай краткий совет: какой картой лучше ходить/отбиваться и почему.
-            Ответ на русском, кратко (2-3 предложения).
+            На основе этих данных дай конкретный тактический совет:
+            - Чем лучше ходить или отбиваться?
+            - Какие карты беречь?
+            - Какие карты скорее всего у противника?
+            Ответ на русском, кратко (3-4 предложения).
         """.trimIndent()
     }
 

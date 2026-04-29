@@ -12,19 +12,23 @@ import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import kotlin.math.abs
 
 /**
- * Оверлей-трекер карт поверх игры. Без AI, без интернета.
+ * Оверлей-трекер карт поверх игры.
  * Плавающая кнопка + компактная панель с сеткой карт.
+ * Опциональная кнопка AI-совета через GigaChat.
  */
 class OverlayTrackerService : Service() {
 
@@ -55,6 +59,10 @@ class OverlayTrackerService : Service() {
     private lateinit var btnModeDiscard: TextView
     private lateinit var btnModeRemove: TextView
 
+    private var aiHelper: AiHelper? = null
+    private var aiLoading = false
+    private val handler = Handler(Looper.getMainLooper())
+
     private lateinit var fabParams: WindowManager.LayoutParams
     private var touchStartX = 0f
     private var touchStartY = 0f
@@ -84,6 +92,7 @@ class OverlayTrackerService : Service() {
         val trumpIndex = intent?.getIntExtra(EXTRA_TRUMP_INDEX, 0) ?: 0
         gameState = GameState(playerCount, Suit.entries[trumpIndex])
 
+        initAiHelper()
         createFab()
         createPanel()
 
@@ -100,6 +109,12 @@ class OverlayTrackerService : Service() {
         TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics
         ).toInt()
+
+    private fun initAiHelper() {
+        val prefs = getSharedPreferences("durak_settings", Context.MODE_PRIVATE)
+        val apiKey = prefs.getString("gigachat_key", "") ?: ""
+        aiHelper = if (apiKey.isNotEmpty()) AiHelper(AiHelper.ApiType.GIGACHAT, apiKey) else null
+    }
 
     // ---------- FAB ----------
 
@@ -310,7 +325,7 @@ class OverlayTrackerService : Service() {
         // --- Быстрые действия ---
         val actionRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutParams = lp(bottomMargin = dp(4))
+            layoutParams = lp(bottomMargin = dp(3))
         }
         actionRow.addView(makeActionBtn("\u2192 Бито") {
             gameState.discardTable(); updateUi()
@@ -329,6 +344,22 @@ class OverlayTrackerService : Service() {
         })
         root.addView(actionRow)
 
+        // --- AI совет ---
+        val aiBtn = TextView(ctx).apply {
+            text = "\uD83E\uDD16 AI совет (GigaChat)"
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(dp(4), dp(8), dp(4), dp(8))
+            background = GradientDrawable().apply {
+                setColor(0xFF6A1B9A.toInt())
+                cornerRadius = dp(8).toFloat()
+            }
+            layoutParams = lp(bottomMargin = dp(4))
+            setOnClickListener { requestAiAdvice() }
+        }
+        root.addView(aiBtn)
+
         // --- Статистика ---
         tvStats = TextView(ctx).apply {
             textSize = 11f
@@ -343,6 +374,7 @@ class OverlayTrackerService : Service() {
             textSize = 12f
             setTextColor(0xFFFFD54F.toInt())
             setTypeface(null, Typeface.BOLD)
+            maxLines = 8
             text = ""
         }
         root.addView(tvAdvice)
@@ -481,6 +513,28 @@ class OverlayTrackerService : Service() {
         if (cards.isEmpty()) return "\u2014"
         return cards.sortedWith(compareBy<Card> { it.suit.ordinal }.thenBy { it.rank.value })
             .joinToString(" ") { it.displayName }
+    }
+
+    // ---------- AI ----------
+
+    private fun requestAiAdvice() {
+        val ai = aiHelper
+        if (ai == null) {
+            tvAdvice.text = "\u26A0 API \u043a\u043b\u044e\u0447 \u043d\u0435 \u0437\u0430\u0434\u0430\u043d.\n\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0435\u0433\u043e \u0432 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f."
+            return
+        }
+        if (aiLoading) return
+        aiLoading = true
+        tvAdvice.text = "\u23F3 \u0417\u0430\u043f\u0440\u043e\u0441 \u043a AI..."
+        tvAdvice.setTextColor(0xFFCE93D8.toInt())
+
+        ai.getAdvice(gameState) { response ->
+            handler.post {
+                tvAdvice.text = response
+                tvAdvice.setTextColor(0xFFCE93D8.toInt())
+                aiLoading = false
+            }
+        }
     }
 
     // ---------- Notification ----------
