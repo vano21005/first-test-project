@@ -17,9 +17,14 @@ import javax.net.ssl.X509TrustManager
  */
 class AiHelper(
     private val apiType: ApiType,
-    private val apiKey: String
+    private val apiKey: String,
+    private var customPromptTemplate: String? = null
 ) {
     enum class ApiType { GIGACHAT, OPENAI }
+
+    fun setPromptTemplate(template: String?) {
+        customPromptTemplate = template
+    }
 
     private val client: OkHttpClient by lazy {
         if (apiType == ApiType.GIGACHAT) {
@@ -48,40 +53,38 @@ class AiHelper(
         }.start()
     }
 
-    private fun buildPrompt(gameState: GameState): String {
-        val stats = gameState.getStats()
-        val myCardsStr = gameState.myCards
-            .sortedWith(compareBy<Card> { it.suit.ordinal }.thenBy { it.rank.value })
-            .joinToString(", ") { it.displayName }
-        val tableCardsStr = if (gameState.tableCards.isEmpty()) "пусто"
-            else gameState.tableCards.joinToString(", ") { it.displayName }
-        val discardedStr = if (gameState.discardedCards.isEmpty()) "пусто"
-            else gameState.discardedCards
-                .sortedWith(compareBy<Card> { it.suit.ordinal }.thenBy { it.rank.value })
-                .joinToString(", ") { it.displayName }
-        val unknownStr = gameState.unknownCards
-            .sortedWith(compareBy<Card> { it.suit.ordinal }.thenBy { it.rank.value })
-            .joinToString(", ") { it.displayName }
-        val trumpStr = "${gameState.trumpSuit.symbol} ${gameState.trumpSuit.displayName}"
+    companion object {
+        const val DEFAULT_PROMPT_TEMPLATE = "Дурак, 36 карт. Козырь: {trump}. Мои ({my_count}): {my_cards}. Стол: {table}. Бито ({discard_count}): {discarded}. Неизвестные ({unknown_count}): {unknown}. Мои козыри: {my_trumps}, чужие козыри: {opp_trumps}, в колоде: {deck}. Дай чёткий совет 2-3 предложения: чем ходить/отбиваться, что беречь."
+    }
 
-        return """
-            Ты — эксперт по карточной игре "Дурак" (36 карт, от 6 до Туза). Помоги выиграть.
-            
-            Козырь: $trumpStr
-            Мои карты (${stats.myCardsCount}): $myCardsStr
-            На столе: $tableCardsStr
-            Бито (${stats.discardedCount}): $discardedStr
-            Неизвестные карты (${stats.remainingUnknown}): $unknownStr
-            Моих козырей: ${stats.myTrumps}
-            Козырей у противников (возможно): ${stats.unknownTrumps}
-            Карт в колоде: ${stats.remainingInDeck}
-            
-            На основе этих данных дай конкретный тактический совет:
-            - Чем лучше ходить или отбиваться?
-            - Какие карты беречь?
-            - Какие карты скорее всего у противника?
-            Ответ на русском, кратко (3-4 предложения).
-        """.trimIndent()
+    private fun buildGameData(gameState: GameState): Map<String, String> {
+        val stats = gameState.getStats()
+        fun sorted(cards: Collection<Card>) = cards
+            .sortedWith(compareBy<Card> { it.suit.ordinal }.thenBy { it.rank.value })
+            .joinToString(", ") { it.displayName }
+        return mapOf(
+            "{trump}" to "${gameState.trumpSuit.symbol} ${gameState.trumpSuit.displayName}",
+            "{my_cards}" to sorted(gameState.myCards),
+            "{my_count}" to stats.myCardsCount.toString(),
+            "{table}" to if (gameState.tableCards.isEmpty()) "пусто" else sorted(gameState.tableCards),
+            "{discarded}" to if (gameState.discardedCards.isEmpty()) "пусто" else sorted(gameState.discardedCards),
+            "{discard_count}" to stats.discardedCount.toString(),
+            "{unknown}" to sorted(gameState.unknownCards),
+            "{unknown_count}" to stats.remainingUnknown.toString(),
+            "{my_trumps}" to stats.myTrumps.toString(),
+            "{opp_trumps}" to stats.unknownTrumps.toString(),
+            "{deck}" to stats.remainingInDeck.toString()
+        )
+    }
+
+    private fun buildPrompt(gameState: GameState): String {
+        val template = customPromptTemplate?.takeIf { it.isNotBlank() } ?: DEFAULT_PROMPT_TEMPLATE
+        val data = buildGameData(gameState)
+        var result = template
+        for ((key, value) in data) {
+            result = result.replace(key, value)
+        }
+        return result
     }
 
     private fun callGigaChat(prompt: String): String {

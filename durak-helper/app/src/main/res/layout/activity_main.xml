@@ -176,6 +176,106 @@
             android:gravity="center"
             android:layout_marginBottom="16dp" />
 
+        <!-- Профиль промпта -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#33FFFFFF"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="\u041f\u0420\u041e\u0424\u0418\u041b\u042c \u041f\u0420\u041e\u041c\u041f\u0422\u0410 AI"
+            android:textColor="#CE93D8"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043f\u0440\u043e\u0444\u0438\u043b\u044c \u0438\u043b\u0438 \u0441\u043e\u0437\u0434\u0430\u0439\u0442\u0435 \u0441\u0432\u043e\u0439. \u041f\u0435\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0435:\n{trump} {my_cards} {my_count} {table}\n{discarded} {discard_count} {unknown}\n{unknown_count} {my_trumps} {opp_trumps} {deck}"
+            android:textColor="#B0BEC5"
+            android:textSize="10sp"
+            android:layout_marginBottom="6dp" />
+
+        <Spinner
+            android:id="@+id/spinnerPromptProfile"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="#33FFFFFF"
+            android:layout_marginBottom="6dp" />
+
+        <EditText
+            android:id="@+id/etPromptText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minLines="3"
+            android:maxLines="8"
+            android:hint="\u0422\u0435\u043a\u0441\u0442 \u043f\u0440\u043e\u043c\u043f\u0442\u0430..."
+            android:textColor="#FFFFFF"
+            android:textColorHint="#78909C"
+            android:textSize="12sp"
+            android:background="#33FFFFFF"
+            android:padding="10dp"
+            android:inputType="textMultiLine"
+            android:gravity="top"
+            android:layout_marginBottom="6dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="6dp">
+
+            <Button
+                android:id="@+id/btnSavePrompt"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c"
+                android:textSize="12sp"
+                android:backgroundTint="#6A1B9A"
+                android:textColor="#FFFFFF"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btnDeletePrompt"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="\u0423\u0434\u0430\u043b\u0438\u0442\u044c"
+                android:textSize="12sp"
+                android:backgroundTint="#C62828"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/etNewProfileName"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:hint="\u0418\u043c\u044f \u043d\u043e\u0432\u043e\u0433\u043e \u043f\u0440\u043e\u0444\u0438\u043b\u044f"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#78909C"
+            android:textSize="12sp"
+            android:background="#33FFFFFF"
+            android:padding="10dp"
+            android:singleLine="true"
+            android:inputType="text"
+            android:layout_marginBottom="6dp" />
+
+        <Button
+            android:id="@+id/btnAddProfile"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:text="\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043f\u0440\u043e\u0444\u0438\u043b\u044c"
+            android:textSize="12sp"
+            android:backgroundTint="#4527A0"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="12dp" />
+
         <!-- Инструкция -->
         <View
             android:layout_width="match_parent"

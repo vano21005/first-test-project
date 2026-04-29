@@ -113,7 +113,15 @@ class OverlayTrackerService : Service() {
     private fun initAiHelper() {
         val prefs = getSharedPreferences("durak_settings", Context.MODE_PRIVATE)
         val apiKey = prefs.getString("gigachat_key", "") ?: ""
-        aiHelper = if (apiKey.isNotEmpty()) AiHelper(AiHelper.ApiType.GIGACHAT, apiKey) else null
+        if (apiKey.isNotEmpty()) {
+            val customPrompt = prefs.getString("active_prompt", "") ?: ""
+            aiHelper = AiHelper(
+                AiHelper.ApiType.GIGACHAT, apiKey,
+                customPrompt.takeIf { it.isNotBlank() }
+            )
+        } else {
+            aiHelper = null
+        }
     }
 
     // ---------- FAB ----------
@@ -184,21 +192,25 @@ class OverlayTrackerService : Service() {
     }
 
     private fun createPanel() {
-        val panel = buildPanelView()
+        val innerPanel = buildPanelView()
+        val scrollWrapper = ScrollView(this).apply {
+            addView(innerPanel)
+        }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             x = 0
             y = dp(24)
         }
-        panel.visibility = View.GONE
-        wm.addView(panel, params)
-        panelView = panel
+        scrollWrapper.visibility = View.GONE
+        wm.addView(scrollWrapper, params)
+        panelView = scrollWrapper
     }
 
     private fun buildPanelView(): View {
@@ -369,15 +381,21 @@ class OverlayTrackerService : Service() {
         }
         root.addView(tvStats)
 
-        // --- Подсказка ---
+        // --- Подсказка (прокручиваемая) ---
         tvAdvice = TextView(ctx).apply {
             textSize = 12f
             setTextColor(0xFFFFD54F.toInt())
             setTypeface(null, Typeface.BOLD)
-            maxLines = 8
             text = ""
         }
-        root.addView(tvAdvice)
+        val adviceScroll = ScrollView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(120)
+            )
+            addView(tvAdvice)
+        }
+        root.addView(adviceScroll)
 
         updateModeButtons()
         return root
