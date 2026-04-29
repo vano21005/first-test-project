@@ -26,6 +26,9 @@ class GameState(
     /** Карты в колоде (определяется AI или вычисляется). */
     var deckCount: Int? = null
 
+    /** Последний определённый статус игры (ваш_ход, бито, пас, беру). */
+    var lastGameStatus: String? = null
+
     /** Карты, которые ещё не были видны. */
     val unknownCards: Set<Card>
         get() = fullDeck - myCards - tableCards - discardedCards - knownOpponentCards
@@ -47,8 +50,10 @@ class GameState(
         newMyCards: Set<Card>,
         newTableCards: Set<Card>,
         detectedTrump: Suit?,
-        detectedDeckCount: Int?
+        detectedDeckCount: Int?,
+        gameStatus: String? = null
     ) {
+        lastGameStatus = gameStatus
         // Авто-бито: если стол был не пуст, а теперь пуст
         if (tableCards.isNotEmpty() && newTableCards.isEmpty()) {
             val cardsLeftTable = tableCards.toSet()
@@ -120,6 +125,7 @@ class GameState(
         discardedCards.clear()
         knownOpponentCards.clear()
         deckCount = null
+        lastGameStatus = null
     }
 
     // ---------- Подсказки ----------
@@ -171,43 +177,70 @@ class GameState(
     fun getAdvice(): String {
         val stats = getStats()
         val advice = StringBuilder()
+        val isAttacking = lastGameStatus == "ваш_ход" || lastGameStatus == "пас"
+        val isDefending = lastGameStatus == "беру"
 
-        if (stats.unknownTrumps == 0 && stats.myTrumps > 0) {
-            advice.appendLine("У противников нет козырей! Атакуй смело.")
-        } else if (stats.myTrumps == 0) {
-            advice.appendLine("У тебя нет козырей — берегись козырных атак!")
-        } else if (stats.myTrumps >= 3) {
-            advice.appendLine("Хороший запас козырей (${stats.myTrumps}). Играй агрессивно.")
+        // Ситуация: твой ход (атака)
+        if (isAttacking && tableCards.isEmpty()) {
+            val attack = suggestAttack()
+            if (attack.isNotEmpty()) {
+                val best = attack.first()
+                advice.appendLine("Ходи: ${best.displayName} (самая мелкая)")
+            }
         }
 
-        if (stats.remainingInDeck <= 4) {
-            advice.appendLine("Колода почти пуста! Считай карты.")
+        // Ситуация: подкинуть карты
+        if (isAttacking && tableCards.isNotEmpty()) {
+            val throwIns = suggestThrowIn()
+            if (throwIns.isNotEmpty()) {
+                advice.appendLine("Подкинь: ${throwIns.joinToString(" ") { it.displayName }}")
+            } else {
+                advice.appendLine("Нечем подкинуть — пасуй")
+            }
+        }
+
+        // Ситуация: защита
+        if (isDefending && tableCards.isNotEmpty()) {
+            val unbeatCards = tableCards.filter { attackCard ->
+                suggestDefense(attackCard).isEmpty()
+            }
+            if (unbeatCards.isEmpty()) {
+                advice.appendLine("Можешь отбиться!")
+            } else {
+                advice.appendLine("Не можешь побить: ${unbeatCards.joinToString(" ") { it.displayName }}")
+            }
+        }
+
+        // Козыри
+        if (stats.unknownTrumps == 0 && stats.myTrumps > 0) {
+            advice.appendLine("У противников нет козырей!")
+        } else if (stats.myTrumps == 0) {
+            advice.appendLine("Нет козырей — осторожно!")
+        } else if (stats.myTrumps >= 3) {
+            advice.appendLine("Козырей: ${stats.myTrumps} — играй смело")
+        }
+
+        if (stats.remainingInDeck <= 4 && stats.remainingInDeck > 0) {
+            advice.appendLine("Колода: ${stats.remainingInDeck} — считай!")
         }
 
         if (stats.remainingUnknown <= 6) {
-            advice.appendLine("Мало неизвестных карт (${stats.remainingUnknown}). Считай!")
+            advice.appendLine("Неизвестных: ${stats.remainingUnknown}")
         }
 
         val highTrumpsInUnknown = unknownCards.count {
             it.suit == trumpSuit && it.rank.value >= Rank.QUEEN.value
         }
         if (highTrumpsInUnknown > 0) {
-            advice.appendLine("Внимание: $highTrumpsInUnknown старших козырей ещё не видно.")
+            advice.appendLine("Старших козырей не видно: $highTrumpsInUnknown")
         }
 
         if (myCards.size <= 3 && stats.remainingInDeck == 0) {
-            advice.appendLine("Финал! Разыгрывай аккуратно.")
-        }
-
-        if (tableCards.isNotEmpty()) {
-            val throwIns = suggestThrowIn()
-            if (throwIns.isNotEmpty()) {
-                advice.appendLine("Можно подкинуть: ${throwIns.joinToString(" ") { it.displayName }}")
-            }
+            advice.appendLine("Финал! Аккуратно!")
         }
 
         if (advice.isEmpty()) {
-            advice.appendLine("Бей мелкими, береги козыри.")
+            advice.appendLine("Бей мелкими, береги козыри")
         }
 
         return advice.toString().trim()

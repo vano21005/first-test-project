@@ -44,7 +44,7 @@ class OverlayService : Service() {
         var trumpSuit: Suit = Suit.SPADES
 
         private const val VIRTUAL_DISPLAY_NAME = "DurakCapture"
-        private const val AUTO_SCAN_INTERVAL = 5000L
+        private const val AUTO_SCAN_INTERVAL = 3000L
     }
 
     private lateinit var windowManager: WindowManager
@@ -300,21 +300,35 @@ class OverlayService : Service() {
                         } else if (result.isError) {
                             tvStatus.text = result.rawResponse
                         } else {
+                            // Авто-определение бито/забрали по статусу
+                            val prevTableNotEmpty = gameState.tableCards.isNotEmpty()
+                            val status = result.gameStatus
+
                             gameState.updateFromScan(
                                 result.myCards,
                                 result.tableCards,
                                 result.trumpSuit,
-                                result.deckCount
+                                result.deckCount,
+                                status
                             )
+
+                            // Если AI определил статус "бито" и стол был не пуст
+                            if (status == "бито" && prevTableNotEmpty &&
+                                result.tableCards.isEmpty()) {
+                                gameState.discardTable()
+                            }
 
                             val statusParts = mutableListOf<String>()
                             statusParts.add("Мои: ${result.myCards.size}")
                             statusParts.add("Стол: ${result.tableCards.size}")
                             if (result.trumpSuit != null) {
-                                statusParts.add("Козырь: ${result.trumpSuit.symbol}")
+                                statusParts.add("${result.trumpSuit.symbol}")
                             }
                             if (result.deckCount != null) {
-                                statusParts.add("Колода: ${result.deckCount}")
+                                statusParts.add("Кол: ${result.deckCount}")
+                            }
+                            if (status != null) {
+                                statusParts.add(status)
                             }
 
                             tvStatus.text = statusParts.joinToString(" | ")

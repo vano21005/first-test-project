@@ -69,7 +69,8 @@ class CardRecognizer(
         val deckCount: Int?,
         val rawResponse: String,
         val isBusy: Boolean = false,
-        val isError: Boolean = false
+        val isError: Boolean = false,
+        val gameStatus: String? = null
     )
 
     /** Распознать карты на скриншоте через AI Vision. */
@@ -102,20 +103,36 @@ class CardRecognizer(
         }.start()
     }
 
-    private val analysisPrompt = """Ты анализируешь скриншот карточной игры "Дурак онлайн". Определи ВСЕ видимые карты.
+    private val analysisPrompt = """Ты анализируешь скриншот мобильной карточной игры "Дурак онлайн" (com.rstgames.durak).
 
-ОТВЕТЬ СТРОГО в формате JSON без markdown и пояснений:
-{"my_cards":["6♠","7♥"],"table_cards":["8♠","9♣"],"trump":"♥","deck_count":12}
+РАСПОЛОЖЕНИЕ ЭЛЕМЕНТОВ НА ЭКРАНЕ (сверху вниз):
+1. ВЕРХ (0-15% экрана): аватары противников с рубашками их карт
+2. ЛЕВЫЙ КРАЙ (примерно 30-50% высоты): КОЗЫРНАЯ КАРТА — маленькая открытая карта, лежащая боком. Рядом ЧИСЛО — количество карт в колоде
+3. ЦЕНТР (30-70% высоты): СТОЛ — карты текущего раунда. Атакующая карта слева, бьющая карта сверху справа (под углом). Пар может быть несколько (до 6)
+4. НИЗ (75-95% высоты): МОИ КАРТЫ — крупные карты веером, открытые лицом вверх. Это главная зона
+5. САМЫЙ НИЗ: панель с кнопками (Беру/Бито/Пас/Ваш ход) и аватар игрока
 
-Правила:
-- my_cards: карты в НИЖНЕЙ части экрана (мои, открытые лицом вверх)
-- table_cards: ВСЕ карты в ЦЕНТРЕ экрана (атакующие и защитные)
-- trump: символ масти козыря (видна внизу колоды или как карта под колодой)
-- deck_count: число оставшихся карт в колоде (если видно число)
-- Номиналы: 6,7,8,9,10,В(валет),Д(дама),К(король),Т(туз)
-- Масти: ♠(пики),♥(черви),♦(бубны),♣(трефы)
-- Пустой массив [] если нет карт в зоне
-- null если не определяется""".trim()
+КАРТЫ В ЭТОЙ ИГРЕ:
+- Номиналы русские: 6, 7, 8, 9, 10, В (валет/jack), Д (дама/queen), К (король/king), Т (туз/ace)
+- Масти по символам: ♠ (пики/чёрные), ♥ (черви/красные), ♦ (бубны/красные), ♣ (трефы/чёрные)
+- На картинках карт номинал в верхнем левом углу, масть сразу под ним
+- Чёрные масти (♠♣) — чёрный текст/символы, красные масти (♥♦) — красный текст/символы
+
+КАК ОПРЕДЕЛИТЬ КОЗЫРЬ:
+- Маленькая открытая карта на ЛЕВОМ краю экрана (обычно лежит боком/под углом)
+- Масть этой карты = козырная масть
+- Число рядом = количество карт в колоде
+
+ВАЖНО:
+- Внимательно различай В (валет) и Д (дама) и К (король) — они все картинки с людьми, но буква в углу разная
+- 10 — единственный двузначный номинал
+- Если стол пустой (нет карт в центре) — table_cards: []
+- Считай КАЖДУЮ карту в моей руке отдельно
+
+ОТВЕТЬ СТРОГО ОДНОЙ СТРОКОЙ JSON без markdown, без пояснений:
+{"my_cards":["6♠","В♥"],"table_cards":["8♣","10♦"],"trump":"♠","deck_count":12,"status":"ваш_ход"}
+
+Поле status — текст кнопки внизу: "ваш_ход", "беру", "бито", "пас" или null.""".trim()
 
     // ---------- GigaChat Vision ----------
 
@@ -288,10 +305,15 @@ class CardRecognizer(
                 json.optInt("deck_count", -1).let { if (it >= 0) it else null }
             } else null
 
-            Log.d(TAG, "Распознано: мои=${myCards.size}, стол=${tableCards.size}, " +
-                    "козырь=$trumpSuit, колода=$deckCount")
+            val gameStatus = json.optString("status", "").let {
+                if (it.isNotEmpty() && it != "null") it else null
+            }
 
-            return RecognitionResult(myCards, tableCards, trumpSuit, deckCount, content)
+            Log.d(TAG, "Распознано: мои=${myCards.size}, стол=${tableCards.size}, " +
+                    "козырь=$trumpSuit, колода=$deckCount, статус=$gameStatus")
+
+            return RecognitionResult(myCards, tableCards, trumpSuit, deckCount, content,
+                gameStatus = gameStatus)
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка парсинга: $content", e)
             return RecognitionResult(
@@ -334,7 +356,7 @@ class CardRecognizer(
 
     private fun bitmapToJpegBytes(bitmap: Bitmap): ByteArray {
         val stream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
         return stream.toByteArray()
     }
 
