@@ -138,37 +138,23 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="\u0414\u043b\u044f \u043a\u043d\u043e\u043f\u043a\u0438 \u00abAI \u0441\u043e\u0432\u0435\u0442\u00bb \u0432 \u043e\u0432\u0435\u0440\u043b\u0435\u0435. \u0411\u0435\u0437 \u044d\u0442\u043e\u0433\u043e \u0442\u0440\u0435\u043a\u0435\u0440 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043e\u0444\u043b\u0430\u0439\u043d.\n\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u043a\u043b\u044e\u0447: developers.sber.ru \u2192 GigaChat API"
+            android:text="\u0412\u0441\u0442\u0430\u0432\u044c\u0442\u0435 Base64 \u043a\u043b\u044e\u0447 (ClientID:Secret \u0432 \u043e\u0434\u043d\u0443 \u0441\u0442\u0440\u043e\u043a\u0443).\n\u0411\u0435\u0437 \u043d\u0435\u0433\u043e \u0442\u0440\u0435\u043a\u0435\u0440 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043e\u0444\u043b\u0430\u0439\u043d, \u043d\u043e \u043a\u043d\u043e\u043f\u043a\u0430 AI \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430."
             android:textColor="#B0BEC5"
             android:textSize="11sp"
             android:layout_marginBottom="8dp" />
 
         <EditText
-            android:id="@+id/etClientId"
+            android:id="@+id/etApiKey"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:hint="Client ID"
+            android:layout_height="48dp"
+            android:hint="Base64 ключ (ClientID:Secret)"
             android:textColor="#FFFFFF"
             android:textColorHint="#78909C"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:background="#33FFFFFF"
             android:padding="10dp"
             android:singleLine="true"
             android:inputType="text"
-            android:layout_marginBottom="6dp" />
-
-        <EditText
-            android:id="@+id/etClientSecret"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:hint="Client Secret"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#78909C"
-            android:textSize="14sp"
-            android:background="#33FFFFFF"
-            android:padding="10dp"
-            android:singleLine="true"
-            android:inputType="textPassword"
             android:layout_marginBottom="6dp" />
 
         <Button

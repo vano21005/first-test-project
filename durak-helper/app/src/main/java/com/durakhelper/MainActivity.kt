@@ -13,11 +13,7 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import java.util.Base64
 
-/**
- * Главный экран: настройка игры, API ключ GigaChat, запуск оверлея.
- */
 class MainActivity : AppCompatActivity() {
 
     companion object {
@@ -27,8 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var spinnerPlayers: Spinner
     private lateinit var spinnerTrump: Spinner
     private lateinit var tvStatus: TextView
-    private lateinit var etClientId: EditText
-    private lateinit var etClientSecret: EditText
+    private lateinit var etApiKey: EditText
     private lateinit var tvApiStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,8 +33,7 @@ class MainActivity : AppCompatActivity() {
         spinnerPlayers = findViewById(R.id.spinnerPlayers)
         spinnerTrump = findViewById(R.id.spinnerTrump)
         tvStatus = findViewById(R.id.tvOverlayStatus)
-        etClientId = findViewById(R.id.etClientId)
-        etClientSecret = findViewById(R.id.etClientSecret)
+        etApiKey = findViewById(R.id.etApiKey)
         tvApiStatus = findViewById(R.id.tvApiStatus)
 
         val playerOptions = (2..6).map { "$it \u0438\u0433\u0440\u043e\u043a\u043e\u0432" }
@@ -79,31 +73,19 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("durak_settings", Context.MODE_PRIVATE)
         val saved = prefs.getString("gigachat_key", "") ?: ""
         if (saved.isNotEmpty()) {
-            try {
-                val decoded = String(Base64.getDecoder().decode(saved))
-                val parts = decoded.split(":")
-                if (parts.size == 2) {
-                    etClientId.setText(parts[0])
-                    etClientSecret.setText(parts[1])
-                }
-            } catch (_: Exception) {
-                etClientId.setText("")
-                etClientSecret.setText("")
-            }
-            tvApiStatus.text = "API \u043a\u043b\u044e\u0447 \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d"
+            etApiKey.setText(saved)
+            tvApiStatus.text = "API \u043a\u043b\u044e\u0447 \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d \u2714"
             tvApiStatus.setTextColor(0xFF81C784.toInt())
         } else {
-            tvApiStatus.text = "API \u043d\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043d (\u043a\u043d\u043e\u043f\u043a\u0430 AI \u043d\u0435 \u0431\u0443\u0434\u0435\u0442 \u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c)"
+            tvApiStatus.text = "\u0412\u0441\u0442\u0430\u0432\u044c\u0442\u0435 Base64 \u043a\u043b\u044e\u0447 \u0438 \u043d\u0430\u0436\u043c\u0438\u0442\u0435 \u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c"
             tvApiStatus.setTextColor(0xFFFFD54F.toInt())
         }
     }
 
     private fun saveApiKey() {
-        val clientId = etClientId.text.toString().trim()
-        val clientSecret = etClientSecret.text.toString().trim()
+        val key = etApiKey.text.toString().trim()
 
-        if (clientId.isEmpty() || clientSecret.isEmpty()) {
-            // Clear saved key
+        if (key.isEmpty()) {
             getSharedPreferences("durak_settings", Context.MODE_PRIVATE)
                 .edit().remove("gigachat_key").apply()
             tvApiStatus.text = "API \u043a\u043b\u044e\u0447 \u0443\u0434\u0430\u043b\u0451\u043d"
@@ -112,13 +94,10 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val credentials = "$clientId:$clientSecret"
-        val base64Key = Base64.getEncoder().encodeToString(credentials.toByteArray())
-
         getSharedPreferences("durak_settings", Context.MODE_PRIVATE)
-            .edit().putString("gigachat_key", base64Key).apply()
+            .edit().putString("gigachat_key", key).apply()
 
-        tvApiStatus.text = "API \u043a\u043b\u044e\u0447 \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d"
+        tvApiStatus.text = "API \u043a\u043b\u044e\u0447 \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d \u2714"
         tvApiStatus.setTextColor(0xFF81C784.toInt())
         Toast.makeText(this, "GigaChat API \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d", Toast.LENGTH_SHORT).show()
     }
