@@ -85,19 +85,28 @@ class AiHelper(
     }
 
     private fun callGigaChat(prompt: String): String {
-        // Получение токена доступа
+        // Получение токена доступа (OAuth)
         val tokenRequest = Request.Builder()
             .url("https://ngw.devices.sberbank.ru:9443/api/v2/oauth")
             .post(
                 "scope=GIGACHAT_API_PERS"
                     .toRequestBody("application/x-www-form-urlencoded".toMediaType())
             )
+            .addHeader("Content-Type", "application/x-www-form-urlencoded")
+            .addHeader("Accept", "application/json")
             .addHeader("Authorization", "Basic $apiKey")
             .addHeader("RqUID", java.util.UUID.randomUUID().toString())
             .build()
 
         val tokenResponse = client.newCall(tokenRequest).execute()
-        val tokenJson = JSONObject(tokenResponse.body?.string() ?: "")
+        val tokenBody = tokenResponse.body?.string() ?: ""
+        if (!tokenResponse.isSuccessful) {
+            return "\u041e\u0448\u0438\u0431\u043a\u0430 \u0442\u043e\u043a\u0435\u043d\u0430 (${tokenResponse.code}): $tokenBody"
+        }
+        val tokenJson = JSONObject(tokenBody)
+        if (!tokenJson.has("access_token")) {
+            return "\u041d\u0435\u0442 access_token: $tokenBody"
+        }
         val accessToken = tokenJson.getString("access_token")
 
         // Запрос к GigaChat
@@ -109,18 +118,32 @@ class AiHelper(
         }
 
         val body = JSONObject().apply {
-            put("model", "GigaChat-2-Lite")
+            put("model", "GigaChat-2")
             put("messages", messagesArray)
+            put("n", 1)
+            put("stream", false)
+            put("max_tokens", 300)
+            put("repetition_penalty", 1)
+            put("update_interval", 0)
         }
 
         val chatRequest = Request.Builder()
             .url("https://gigachat.devices.sberbank.ru/api/v1/chat/completions")
             .post(body.toString().toRequestBody("application/json".toMediaType()))
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Accept", "application/json")
             .addHeader("Authorization", "Bearer $accessToken")
             .build()
 
         val chatResponse = client.newCall(chatRequest).execute()
-        val chatJson = JSONObject(chatResponse.body?.string() ?: "")
+        val chatBody = chatResponse.body?.string() ?: ""
+        if (!chatResponse.isSuccessful) {
+            return "\u041e\u0448\u0438\u0431\u043a\u0430 API (${chatResponse.code}): $chatBody"
+        }
+        val chatJson = JSONObject(chatBody)
+        if (!chatJson.has("choices")) {
+            return "\u041e\u0442\u0432\u0435\u0442 \u0431\u0435\u0437 choices: $chatBody"
+        }
         return chatJson
             .getJSONArray("choices")
             .getJSONObject(0)
